@@ -1,8 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ContactFormState, FormErrors } from '../types';
 import { MapPin, Phone, Mail, Clock, Send } from 'lucide-react';
+import { supabase, getWebsiteId } from '../src/lib/supabase';
+import type { ContactInfo } from '../src/types/database.types';
+import { EditableText } from '../src/components/editor/EditableText';
+import { useEditor } from '../src/contexts/EditorContext';
 
 export const Contact: React.FC = () => {
+  const [content, setContent] = useState<ContactInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { isEditing, saveField } = useEditor();
   const [formData, setFormData] = useState<ContactFormState>({
     name: '',
     email: '',
@@ -13,6 +20,30 @@ export const Contact: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  useEffect(() => {
+    fetchContactInfo();
+  }, []);
+
+  const fetchContactInfo = async () => {
+    try {
+      const websiteId = await getWebsiteId();
+      if (!websiteId) return;
+
+      const { data, error } = await supabase
+        .from('contact_info')
+        .select('*')
+        .eq('website_id', websiteId)
+        .single();
+
+      if (error) throw error;
+      setContent(data as ContactInfo);
+    } catch (error) {
+      console.error('Error fetching contact info:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
@@ -29,18 +60,35 @@ export const Contact: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validate()) {
+    if (validate() && content) {
       setIsSubmitting(true);
-      // Simulate API call
-      setTimeout(() => {
-        setIsSubmitting(false);
+      try {
+        const websiteId = await getWebsiteId();
+        
+        // Save submission to database
+        const { error } = await supabase
+          .from('contact_submissions')
+          .insert({
+            website_id: websiteId,
+            name: formData.name,
+            email: formData.email,
+            subject: formData.subject,
+            message: formData.message,
+            status: 'new'
+          });
+
+        if (error) throw error;
+
         setIsSuccess(true);
         setFormData({ name: '', email: '', subject: '', message: '' });
-        // Reset success message after 5 seconds
         setTimeout(() => setIsSuccess(false), 5000);
-      }, 1500);
+      } catch (error) {
+        console.error('Error submitting contact form:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -53,6 +101,19 @@ export const Contact: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <section id="contact" className="py-20 bg-white flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bakery-primary mx-auto mb-4"></div>
+          <p className="font-sans text-gray-600">Loading...</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (!content) return null;
+
   return (
     <section id="contact" className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -61,24 +122,98 @@ export const Contact: React.FC = () => {
           {/* Info Side */}
           <div className="space-y-8">
             <div>
-              <h2 className="font-serif text-4xl md:text-5xl font-bold text-bakery-dark mb-6">
-                Visit Us
-              </h2>
-              <p className="text-lg text-gray-600 font-sans leading-relaxed">
-                We'd love to see you! Stop by for a coffee and a fresh pastry, or send us a message to place a custom order for your special event.
-              </p>
+              {isEditing ? (
+                <EditableText
+                  value={content.heading}
+                  onSave={async (newValue) => {
+                    await saveField('contact_info', 'heading', newValue, content.id);
+                    setContent({ ...content, heading: newValue });
+                  }}
+                  tag="h2"
+                  className="font-serif text-4xl md:text-5xl font-bold text-bakery-dark mb-6"
+                />
+              ) : (
+                <h2 className="font-serif text-4xl md:text-5xl font-bold text-bakery-dark mb-6">
+                  {content.heading}
+                </h2>
+              )}
+              {content.subheading && (
+                isEditing ? (
+                  <EditableText
+                    value={content.subheading}
+                    onSave={async (newValue) => {
+                      await saveField('contact_info', 'subheading', newValue, content.id);
+                      setContent({ ...content, subheading: newValue });
+                    }}
+                    tag="p"
+                    multiline
+                    className="text-lg text-gray-600 font-sans leading-relaxed"
+                  />
+                ) : (
+                  <p className="text-lg text-gray-600 font-sans leading-relaxed">
+                    {content.subheading}
+                  </p>
+                )
+              )}
             </div>
 
             <div className="grid gap-6">
-              <div className="flex items-start space-x-4">
-                <div className="bg-bakery-cream p-3 rounded-full text-bakery-primary">
-                  <MapPin size={24} />
+              {content.address && (
+                <div className="flex items-start space-x-4">
+                  <div className="bg-bakery-cream p-3 rounded-full text-bakery-primary">
+                    <MapPin size={24} />
+                  </div>
+                  <div>
+                    {isEditing ? (
+                      <EditableText
+                        value="Location"
+                        onSave={async () => {}}
+                        tag="h3"
+                        className="font-serif font-bold text-xl text-bakery-dark"
+                      />
+                    ) : (
+                      <h3 className="font-serif font-bold text-xl text-bakery-dark">Location</h3>
+                    )}
+                    <p className="text-gray-600 font-sans">
+                      {isEditing ? (
+                        <>
+                          <EditableText
+                            value={content.address || ''}
+                            onSave={async (newValue) => {
+                              await saveField('contact_info', 'address', newValue, content.id);
+                              setContent({ ...content, address: newValue });
+                            }}
+                            tag="span"
+                            className="text-gray-600 font-sans"
+                          />
+                          <br />
+                          <EditableText
+                            value={`${content.city}, ${content.state} ${content.zip_code}`}
+                            onSave={async (newValue) => {
+                              const parts = newValue.split(', ');
+                              const city = parts[0];
+                              const stateZip = parts[1]?.split(' ') || [];
+                              const state = stateZip[0] || '';
+                              const zip = stateZip[1] || '';
+                              await saveField('contact_info', 'city', city, content.id);
+                              await saveField('contact_info', 'state', state, content.id);
+                              await saveField('contact_info', 'zip_code', zip, content.id);
+                              setContent({ ...content, city, state, zip_code: zip });
+                            }}
+                            tag="span"
+                            className="text-gray-600 font-sans"
+                          />
+                        </>
+                      ) : (
+                        <>
+                          {content.address}<br />
+                          {content.city}, {content.state} {content.zip_code}
+                        </>
+                      )}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-serif font-bold text-xl text-bakery-dark">Location</h3>
-                  <p className="text-gray-600 font-sans">123 Baker Street<br />Culinary District, FL 33101</p>
-                </div>
-              </div>
+              )}
 
               <div className="flex items-start space-x-4">
                 <div className="bg-bakery-cream p-3 rounded-full text-bakery-primary">
@@ -90,15 +225,59 @@ export const Contact: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-start space-x-4">
-                <div className="bg-bakery-cream p-3 rounded-full text-bakery-primary">
-                  <Phone size={24} />
+              {(content.phone || content.email) && (
+                <div className="flex items-start space-x-4">
+                  <div className="bg-bakery-cream p-3 rounded-full text-bakery-primary">
+                    <Phone size={24} />
+                  </div>
+                  <div>
+                    {isEditing ? (
+                      <EditableText
+                        value="Contact"
+                        onSave={async () => {}}
+                        tag="h3"
+                        className="font-serif font-bold text-xl text-bakery-dark"
+                      />
+                    ) : (
+                      <h3 className="font-serif font-bold text-xl text-bakery-dark">Contact</h3>
+                    )}
+                    <p className="text-gray-600 font-sans">
+                      {isEditing ? (
+                        <>
+                          {content.phone && (
+                            <>
+                              <EditableText
+                                value={content.phone}
+                                onSave={async (newValue) => {
+                                  await saveField('contact_info', 'phone', newValue, content.id);
+                                  setContent({ ...content, phone: newValue });
+                                }}
+                                tag="span"
+                                className="text-gray-600 font-sans"
+                              />
+                              <br />
+                            </>
+                          )}
+                          <EditableText
+                            value={content.email || ''}
+                            onSave={async (newValue) => {
+                              await saveField('contact_info', 'email', newValue, content.id);
+                              setContent({ ...content, email: newValue });
+                            }}
+                            tag="span"
+                            className="text-gray-600 font-sans"
+                          />
+                        </>
+                      ) : (
+                        <>
+                          {content.phone && <>{content.phone}<br /></>}
+                          {content.email}
+                        </>
+                      )}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-serif font-bold text-xl text-bakery-dark">Contact</h3>
-                  <p className="text-gray-600 font-sans">(555) 123-4567<br />hello@goldencrumb.com</p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 

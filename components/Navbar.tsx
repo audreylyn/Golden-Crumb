@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Croissant, ShoppingCart } from 'lucide-react';
+import { Menu, X, Croissant, ShoppingCart, Upload } from 'lucide-react';
+import { supabase, getWebsiteId } from '../src/lib/supabase';
+import { EditableText } from '../src/components/editor/EditableText';
+import { useEditor } from '../src/contexts/EditorContext';
+import type { NavbarContent } from '../src/types/database.types';
 
 interface NavbarProps {
   onOpenCart: () => void;
@@ -9,6 +13,13 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ onOpenCart, cartItemCount }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [navbarContent, setNavbarContent] = useState<NavbarContent | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { isEditing, saveField } = useEditor();
+
+  useEffect(() => {
+    fetchNavbarContent();
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -18,12 +29,101 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart, cartItemCount }) => 
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navLinks = [
-    { name: 'Home', href: '#hero' },
-    { name: 'Menu', href: '#menu' },
-    { name: 'About', href: '#about' },
-    { name: 'Contact', href: '#contact' },
+  const fetchNavbarContent = async () => {
+    try {
+      const websiteId = await getWebsiteId();
+      if (!websiteId) {
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('navbar_content')
+        .select('*')
+        .eq('website_id', websiteId)
+        .single();
+
+      if (error) {
+        // If no navbar content exists, create default
+        if (error.code === 'PGRST116') {
+          const { data: newData, error: insertError } = await supabase
+            .from('navbar_content')
+            .insert({
+              website_id: websiteId,
+              brand_name: 'The Golden Crumb',
+              brand_logo_url: null,
+              show_cart: true,
+              sticky_nav: true,
+              nav_items: [
+                { label: 'Home', href: '#hero', order: 0 },
+                { label: 'Menu', href: '#menu', order: 1 },
+                { label: 'About', href: '#about', order: 2 },
+                { label: 'Contact', href: '#contact', order: 3 }
+              ],
+              cta_button: {
+                text: 'Reserve Table',
+                href: '#reservation',
+                variant: 'primary'
+              }
+            })
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+          setNavbarContent(newData as NavbarContent);
+        } else {
+          throw error;
+        }
+      } else {
+        setNavbarContent(data as NavbarContent);
+      }
+    } catch (error) {
+      console.error('Error fetching navbar content:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogoChange = async () => {
+    if (!navbarContent) return;
+    
+    const logoUrl = prompt('Enter logo image URL:', navbarContent.brand_logo_url || '');
+    if (logoUrl !== null) {
+      try {
+        await saveField('navbar_content', 'brand_logo_url', logoUrl || null, navbarContent.id);
+        setNavbarContent({ ...navbarContent, brand_logo_url: logoUrl || null });
+      } catch (error) {
+        console.error('Error saving logo:', error);
+      }
+    }
+  };
+
+  const brandName = navbarContent?.brand_name || 'The Golden Crumb';
+  const brandLogo = navbarContent?.brand_logo_url;
+  const navItems = (navbarContent?.nav_items as any[]) || [
+    { label: 'Home', href: '#hero', order: 0 },
+    { label: 'Menu', href: '#menu', order: 1 },
+    { label: 'About', href: '#about', order: 2 },
+    { label: 'Contact', href: '#contact', order: 3 },
   ];
+
+  if (loading) {
+    // Show navbar with default values while loading
+    return (
+      <nav className="fixed w-full z-40 bg-transparent py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex-shrink-0 flex items-center gap-2">
+              <div className="p-2 rounded-full bg-white text-bakery-primary">
+                <Croissant size={24} />
+              </div>
+              <span className="font-serif text-2xl font-bold text-white">The Golden Crumb</span>
+            </div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav
@@ -35,31 +135,77 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart, cartItemCount }) => 
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer group">
-            <div className={`p-2 rounded-full transition-colors duration-300 ${scrolled ? 'bg-bakery-primary text-white' : 'bg-white text-bakery-primary'}`}>
-              <Croissant size={24} />
+            <div 
+              className={`p-2 rounded-full transition-colors duration-300 relative ${scrolled ? 'bg-bakery-primary text-white' : 'bg-white text-bakery-primary'} ${isEditing ? 'cursor-pointer hover:ring-2 hover:ring-blue-500 rounded-full' : ''}`}
+              onClick={isEditing ? handleLogoChange : undefined}
+              title={isEditing ? 'Click to change logo' : ''}
+            >
+              {brandLogo ? (
+                <img src={brandLogo} alt="Logo" className="w-6 h-6 object-contain" />
+              ) : (
+                <Croissant size={24} />
+              )}
+              {isEditing && (
+                <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Upload size={12} />
+                </div>
+              )}
             </div>
-            <span className={`font-serif text-2xl font-bold tracking-wide transition-colors duration-300 ${
-              scrolled ? 'text-bakery-dark' : 'text-white drop-shadow-md'
-            }`}>
-              The Golden Crumb
-            </span>
+            {isEditing && navbarContent ? (
+              <EditableText
+                value={brandName}
+                onSave={async (newValue) => {
+                  await saveField('navbar_content', 'brand_name', newValue, navbarContent.id);
+                  setNavbarContent({ ...navbarContent, brand_name: newValue });
+                }}
+                tag="span"
+                className={`font-serif text-2xl font-bold tracking-wide transition-colors duration-300 ${
+                  scrolled ? 'text-bakery-dark' : 'text-white drop-shadow-md'
+                }`}
+              />
+            ) : (
+              <span className={`font-serif text-2xl font-bold tracking-wide transition-colors duration-300 ${
+                scrolled ? 'text-bakery-dark' : 'text-white drop-shadow-md'
+              }`}>
+                {brandName}
+              </span>
+            )}
           </div>
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-8">
-            {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                className={`font-sans font-medium text-lg tracking-wide transition-colors duration-300 ${
-                  scrolled 
-                    ? 'text-bakery-dark hover:text-bakery-primary' 
-                    : 'text-white/90 hover:text-white drop-shadow-sm'
-                }`}
-              >
-                {link.name}
-              </a>
-            ))}
+            {navItems.map((link: any, index: number) => {
+              const linkName = link.label || link.name || 'Link';
+              const linkHref = link.href || '#';
+              
+              return (
+                <a
+                  key={index}
+                  href={isEditing ? '#' : linkHref}
+                  onClick={isEditing ? (e) => e.preventDefault() : undefined}
+                  className={`font-sans font-medium text-lg tracking-wide transition-colors duration-300 ${
+                    scrolled 
+                      ? 'text-bakery-dark hover:text-bakery-primary' 
+                      : 'text-white/90 hover:text-white drop-shadow-sm'
+                  }`}
+                >
+                  {isEditing && navbarContent ? (
+                    <EditableText
+                      value={linkName}
+                      onSave={async (newValue) => {
+                        const updatedNavItems = [...navItems];
+                        updatedNavItems[index] = { ...updatedNavItems[index], label: newValue };
+                        await saveField('navbar_content', 'nav_items', updatedNavItems, navbarContent.id);
+                        setNavbarContent({ ...navbarContent, nav_items: updatedNavItems as any });
+                      }}
+                      tag="span"
+                    />
+                  ) : (
+                    linkName
+                  )}
+                </a>
+              );
+            })}
             
             {/* Cart Button */}
             <button
@@ -112,16 +258,40 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart, cartItemCount }) => 
       {isOpen && (
         <div className="md:hidden absolute top-full left-0 w-full bg-bakery-cream shadow-lg border-t border-bakery-sand animate-in slide-in-from-top-2 duration-200">
           <div className="px-4 pt-2 pb-6 space-y-2">
-            {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                onClick={() => setIsOpen(false)}
-                className="block px-3 py-3 text-base font-medium text-bakery-dark hover:text-bakery-primary hover:bg-bakery-beige rounded-md transition-colors"
-              >
-                {link.name}
-              </a>
-            ))}
+            {navItems.map((link: any, index: number) => {
+              const linkName = link.label || link.name || 'Link';
+              const linkHref = link.href || '#';
+              
+              return (
+                <a
+                  key={index}
+                  href={isEditing ? '#' : linkHref}
+                  onClick={(e) => {
+                    if (isEditing) {
+                      e.preventDefault();
+                    } else {
+                      setIsOpen(false);
+                    }
+                  }}
+                  className="block px-3 py-3 text-base font-medium text-bakery-dark hover:text-bakery-primary hover:bg-bakery-beige rounded-md transition-colors"
+                >
+                  {isEditing && navbarContent ? (
+                    <EditableText
+                      value={linkName}
+                      onSave={async (newValue) => {
+                        const updatedNavItems = [...navItems];
+                        updatedNavItems[index] = { ...updatedNavItems[index], label: newValue };
+                        await saveField('navbar_content', 'nav_items', updatedNavItems, navbarContent.id);
+                        setNavbarContent({ ...navbarContent, nav_items: updatedNavItems as any });
+                      }}
+                      tag="span"
+                    />
+                  ) : (
+                    linkName
+                  )}
+                </a>
+              );
+            })}
           </div>
         </div>
       )}

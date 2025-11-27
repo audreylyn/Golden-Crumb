@@ -1,52 +1,127 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { MenuItem } from '../types';
 import { ShoppingBag, Star, ArrowRight } from 'lucide-react';
+import { supabase, getWebsiteId } from '../src/lib/supabase';
+import type { Product, FeaturedProductsConfig } from '../src/types/database.types';
+import { EditableText } from '../src/components/editor/EditableText';
+import { useEditor } from '../src/contexts/EditorContext';
 
-// Selected items to feature - IDs match those in Menu.tsx for cart consistency
-const featuredItems: MenuItem[] = [
-  {
-    id: 7,
-    name: 'Carrot Cake',
-    description: 'Moist spiced cake with crushed carrots and walnuts, topped with cream cheese frosting.',
-    price: 250,
-    category: 'cake',
-    image: 'https://images.unsplash.com/photo-1621303837174-89787a7d4729?auto=format&fit=crop&w=800&q=80'
-  },
-  {
-    id: 2,
-    name: 'Sourdough Loaf',
-    description: 'Rustic crust with a soft, airy interior. Fermented for 48 hours.',
-    price: 350,
-    category: 'bread',
-    image: 'https://picsum.photos/seed/sourdough/800/800'
-  },
-  {
-    id: 4,
-    name: 'Berry Tart',
-    description: 'Fresh seasonal berries atop a vanilla custard and almond tart shell.',
-    price: 280,
-    category: 'pastry',
-    image: 'https://picsum.photos/seed/tart/800/800'
-  }
-];
+// Adapter to convert DB product to UI menu item
+const adaptProduct = (dbProduct: Product): MenuItem => ({
+  id: parseInt(dbProduct.id.slice(0, 8), 16), // Convert UUID to number for cart compatibility
+  name: dbProduct.name,
+  description: dbProduct.description || '',
+  price: Number(dbProduct.price),
+  category: dbProduct.category || 'product',
+  image: dbProduct.image_url || 'https://picsum.photos/seed/product/800/800'
+});
 
 interface FeaturedProductsProps {
   addToCart: (item: MenuItem) => void;
 }
 
 export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({ addToCart }) => {
+  const [config, setConfig] = useState<FeaturedProductsConfig | null>(null);
+  const [products, setProducts] = useState<MenuItem[]>([]);
+  const [dbProducts, setDbProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { isEditing, saveField } = useEditor();
+
+  useEffect(() => {
+    fetchFeaturedProducts();
+  }, []);
+
+  const fetchFeaturedProducts = async () => {
+    try {
+      const websiteId = await getWebsiteId();
+      if (!websiteId) return;
+
+      // Fetch config
+      const { data: configData, error: configError } = await supabase
+        .from('featured_products_config')
+        .select('*')
+        .eq('website_id', websiteId)
+        .single();
+
+      if (configError) throw configError;
+      setConfig(configData as FeaturedProductsConfig);
+
+      // Fetch featured products
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('website_id', websiteId)
+        .eq('is_featured', true)
+        .eq('is_available', true)
+        .order('display_order')
+        .limit(configData.max_items || 6);
+
+      if (productsError) throw productsError;
+      
+      // Store DB products for editing
+      setDbProducts(productsData as Product[]);
+      
+      // Convert DB products to UI items
+      const adaptedProducts = (productsData as Product[]).map(adaptProduct);
+      setProducts(adaptedProducts);
+    } catch (error) {
+      console.error('Error fetching featured products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <section className="py-24 bg-white relative flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bakery-primary mx-auto mb-4"></div>
+          <p className="font-sans text-gray-600">Loading...</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (!config || products.length === 0) return null;
+
   return (
     <section className="py-24 bg-white relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
           <div className="max-w-2xl">
-             <span className="font-sans font-bold text-bakery-primary tracking-widest uppercase text-sm block mb-2">
-              Curated Selections
-            </span>
-            <h2 className="font-serif text-4xl md:text-5xl font-bold text-bakery-dark">
-              Chef's Favorites
-            </h2>
+            {config.subheading && (
+              isEditing ? (
+                <EditableText
+                  value={config.subheading}
+                  onSave={async (newValue) => {
+                    await saveField('featured_products_config', 'subheading', newValue, config.id);
+                    setConfig({ ...config, subheading: newValue });
+                  }}
+                  tag="span"
+                  className="font-sans font-bold text-bakery-primary tracking-widest uppercase text-sm block mb-2"
+                />
+              ) : (
+                <span className="font-sans font-bold text-bakery-primary tracking-widest uppercase text-sm block mb-2">
+                  {config.subheading}
+                </span>
+              )
+            )}
+            {isEditing ? (
+              <EditableText
+                value={config.heading}
+                onSave={async (newValue) => {
+                  await saveField('featured_products_config', 'heading', newValue, config.id);
+                  setConfig({ ...config, heading: newValue });
+                }}
+                tag="h2"
+                className="font-serif text-4xl md:text-5xl font-bold text-bakery-dark"
+              />
+            ) : (
+              <h2 className="font-serif text-4xl md:text-5xl font-bold text-bakery-dark">
+                {config.heading}
+              </h2>
+            )}
           </div>
           <div className="flex items-center gap-2 text-bakery-dark/70 font-sans font-medium hover:text-bakery-primary transition-colors cursor-pointer group">
              <span>See all categories</span>
@@ -56,7 +131,7 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({ addToCart })
 
         {/* Product Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
-          {featuredItems.map((item) => (
+          {products.map((item) => (
              <div key={item.id} className="group flex flex-col h-full">
                 {/* Image Container */}
                 <div className="aspect-[4/5] w-full rounded-2xl overflow-hidden mb-6 relative shadow-md hover:shadow-xl transition-all duration-500">
@@ -89,16 +164,66 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({ addToCart })
                 {/* Content */}
                 <div className="flex flex-col flex-grow">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-serif text-2xl font-bold text-bakery-dark group-hover:text-bakery-primary transition-colors">
-                        {item.name}
-                    </h3>
-                    <span className="font-serif text-xl font-bold text-bakery-accent">
-                        ₱{item.price}
-                    </span>
+                    {isEditing ? (
+                      <EditableText
+                        value={item.name}
+                        onSave={async (newValue) => {
+                          const dbProduct = dbProducts.find(db => db.name === item.name);
+                          if (dbProduct) {
+                            await saveField('products', 'name', newValue, dbProduct.id);
+                            setDbProducts(dbProducts.map(db => db.id === dbProduct.id ? { ...db, name: newValue } : db));
+                            setProducts(products.map(p => p.id === item.id ? { ...p, name: newValue } : p));
+                          }
+                        }}
+                        tag="h3"
+                        className="font-serif text-2xl font-bold text-bakery-dark group-hover:text-bakery-primary transition-colors"
+                      />
+                    ) : (
+                      <h3 className="font-serif text-2xl font-bold text-bakery-dark group-hover:text-bakery-primary transition-colors">
+                          {item.name}
+                      </h3>
+                    )}
+                    {isEditing ? (
+                      <EditableText
+                        value={item.price.toString()}
+                        onSave={async (newValue) => {
+                          const price = parseFloat(newValue) || 0;
+                          const dbProduct = dbProducts.find(db => db.name === item.name);
+                          if (dbProduct) {
+                            await saveField('products', 'price', price, dbProduct.id);
+                            setDbProducts(dbProducts.map(db => db.id === dbProduct.id ? { ...db, price } : db));
+                            setProducts(products.map(p => p.id === item.id ? { ...p, price } : p));
+                          }
+                        }}
+                        tag="span"
+                        className="font-serif text-xl font-bold text-bakery-accent"
+                      />
+                    ) : (
+                      <span className="font-serif text-xl font-bold text-bakery-accent">
+                          ₱{item.price}
+                      </span>
+                    )}
                   </div>
-                  <p className="text-gray-600 font-sans text-sm leading-relaxed line-clamp-2">
-                    {item.description}
-                  </p>
+                  {isEditing ? (
+                    <EditableText
+                      value={item.description}
+                      onSave={async (newValue) => {
+                        const dbProduct = dbProducts.find(db => db.name === item.name);
+                        if (dbProduct) {
+                          await saveField('products', 'description', newValue, dbProduct.id);
+                          setDbProducts(dbProducts.map(db => db.id === dbProduct.id ? { ...db, description: newValue } : db));
+                          setProducts(products.map(p => p.id === item.id ? { ...p, description: newValue } : p));
+                        }
+                      }}
+                      tag="p"
+                      multiline
+                      className="text-gray-600 font-sans text-sm leading-relaxed line-clamp-2"
+                    />
+                  ) : (
+                    <p className="text-gray-600 font-sans text-sm leading-relaxed line-clamp-2">
+                      {item.description}
+                    </p>
+                  )}
                 </div>
              </div>
           ))}

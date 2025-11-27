@@ -1,53 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Quote, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
-
-const testimonials = [
-  {
-    id: 1,
-    name: "Sarah Jenkins",
-    role: "Local Foodie",
-    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80",
-    content: "The almond croissants are simply divine! The layers are perfectly flaky, and the filling is not too sweet. It reminds me of my trip to Paris last summer.",
-    stars: 5
-  },
-  {
-    id: 2,
-    name: "Michael Ross",
-    role: "Regular Customer",
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80",
-    content: "Best sourdough in the city, hands down. The crust has that perfect crunch and the interior is soft and airy. The staff is always so welcoming and warm.",
-    stars: 5
-  },
-  {
-    id: 3,
-    name: "Emily Chen",
-    role: "Coffee Lover",
-    image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80",
-    content: "A cozy little gem in the neighborhood. I start every Sunday morning here with a latte and a cinnamon roll. It's my happy place.",
-    stars: 5
-  },
-  {
-    id: 4,
-    name: "James Wilson",
-    role: "Pastry Chef",
-    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80",
-    content: "As a chef myself, I appreciate the technique that goes into their laminations. The pain au chocolat is technically perfect.",
-    stars: 5
-  },
-  {
-    id: 5,
-    name: "Linda Martinez",
-    role: "Event Planner",
-    image: "https://images.unsplash.com/photo-1554151228-14d9def656ec?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80",
-    content: "We ordered 50 cupcakes for a corporate event and they were gone in minutes. The presentation was beautiful and the taste was even better.",
-    stars: 5
-  }
-];
+import { supabase, getWebsiteId } from '../src/lib/supabase';
+import type { Testimonial, TestimonialsConfig } from '../src/types/database.types';
+import { EditableText } from '../src/components/editor/EditableText';
+import { useEditor } from '../src/contexts/EditorContext';
 
 export const Testimonials: React.FC = () => {
+  const [config, setConfig] = useState<TestimonialsConfig | null>(null);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [loading, setLoading] = useState(true);
   const [index, setIndex] = useState(0);
   const [visibleCards, setVisibleCards] = useState(3);
+  const { isEditing, saveField } = useEditor();
+
+  useEffect(() => {
+    fetchTestimonialsData();
+  }, []);
+
+  const fetchTestimonialsData = async () => {
+    try {
+      const websiteId = await getWebsiteId();
+      if (!websiteId) return;
+
+      // Fetch config
+      const { data: configData, error: configError } = await supabase
+        .from('testimonials_config')
+        .select('*')
+        .eq('website_id', websiteId)
+        .single();
+
+      if (configError) throw configError;
+      setConfig(configData as TestimonialsConfig);
+
+      // Fetch testimonials
+      const { data: testimonialsData, error: testimonialsError } = await supabase
+        .from('testimonials')
+        .select('*')
+        .eq('website_id', websiteId)
+        .order('display_order');
+
+      if (testimonialsError) throw testimonialsError;
+      setTestimonials(testimonialsData as Testimonial[]);
+    } catch (error) {
+      console.error('Error fetching testimonials data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Handle responsive visible cards
   useEffect(() => {
@@ -66,6 +66,13 @@ export const Testimonials: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Disable carousel navigation when editing
+  useEffect(() => {
+    if (isEditing) {
+      setIndex(0); // Reset to first when editing
+    }
+  }, [isEditing]);
+
   const maxIndex = Math.max(0, testimonials.length - visibleCards);
 
   const nextSlide = () => {
@@ -76,6 +83,19 @@ export const Testimonials: React.FC = () => {
     setIndex((prev) => Math.max(prev - 1, 0));
   };
 
+  if (loading) {
+    return (
+      <section className="py-24 bg-bakery-dark text-bakery-beige relative overflow-hidden flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="font-sans text-white">Loading...</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (!config || testimonials.length === 0) return null;
+
   return (
     <section className="py-24 bg-bakery-dark text-bakery-beige relative overflow-hidden">
       {/* Decorative subtle overlay */}
@@ -83,13 +103,40 @@ export const Testimonials: React.FC = () => {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-16">
-          <h2 className="font-serif text-4xl md:text-5xl font-bold text-white mb-4">
-            Words from the Warmth
-          </h2>
+          {isEditing ? (
+            <EditableText
+              value={config.heading}
+              onSave={async (newValue) => {
+                await saveField('testimonials_config', 'heading', newValue, config.id);
+                setConfig({ ...config, heading: newValue });
+              }}
+              tag="h2"
+              className="font-serif text-4xl md:text-5xl font-bold text-white mb-4"
+            />
+          ) : (
+            <h2 className="font-serif text-4xl md:text-5xl font-bold text-white mb-4">
+              {config.heading}
+            </h2>
+          )}
           <div className="w-24 h-1 bg-bakery-accent mx-auto rounded-full mb-6" />
-          <p className="text-bakery-sand/80 font-sans text-lg max-w-2xl mx-auto">
-            Nothing makes us happier than seeing our customers smile. Here's what our community has to say.
-          </p>
+          {config.subheading && (
+            isEditing ? (
+              <EditableText
+                value={config.subheading}
+                onSave={async (newValue) => {
+                  await saveField('testimonials_config', 'subheading', newValue, config.id);
+                  setConfig({ ...config, subheading: newValue });
+                }}
+                tag="p"
+                multiline
+                className="text-bakery-sand/80 font-sans text-lg max-w-2xl mx-auto"
+              />
+            ) : (
+              <p className="text-bakery-sand/80 font-sans text-lg max-w-2xl mx-auto">
+                {config.subheading}
+              </p>
+            )
+          )}
         </div>
 
         {/* Carousel Container */}
@@ -108,28 +155,68 @@ export const Testimonials: React.FC = () => {
                   style={{ width: `${100 / visibleCards}%` }}
                 >
                   <div className="bg-white/5 backdrop-blur-sm p-8 rounded-2xl border border-white/10 relative hover:bg-white/10 transition-colors duration-300 h-full flex flex-col">
-                    {/* Changed Quote Color to bakery-accent based on request */}
                     <Quote className="absolute top-6 right-6 text-bakery-accent opacity-60" size={48} />
                     
-                    <div className="flex gap-1 mb-6 text-bakery-accent">
-                      {[...Array(testimonial.stars)].map((_, i) => (
-                        <Star key={i} size={18} fill="currentColor" />
-                      ))}
-                    </div>
+                    {config.show_ratings && testimonial.rating && (
+                      <div className="flex gap-1 mb-6 text-bakery-accent">
+                        {[...Array(testimonial.rating)].map((_, i) => (
+                          <Star key={i} size={18} fill="currentColor" />
+                        ))}
+                      </div>
+                    )}
 
-                    <p className="font-serif text-lg italic text-white/90 mb-8 leading-relaxed flex-grow">
-                      "{testimonial.content}"
-                    </p>
+                    {isEditing ? (
+                      <EditableText
+                        value={testimonial.testimonial_text}
+                        onSave={async (newValue) => {
+                          await saveField('testimonials', 'testimonial_text', newValue, testimonial.id);
+                          setTestimonials(testimonials.map(t => t.id === testimonial.id ? { ...t, testimonial_text: newValue } : t));
+                        }}
+                        tag="p"
+                        multiline
+                        className="font-serif text-lg italic text-white/90 mb-8 leading-relaxed flex-grow"
+                      />
+                    ) : (
+                      <p className="font-serif text-lg italic text-white/90 mb-8 leading-relaxed flex-grow">
+                        "{testimonial.testimonial_text}"
+                      </p>
+                    )}
 
                     <div className="flex items-center gap-4 mt-auto">
                       <img 
-                        src={testimonial.image} 
-                        alt={testimonial.name} 
+                        src={testimonial.customer_image_url || `https://i.pravatar.cc/150?u=${testimonial.id}`} 
+                        alt={testimonial.customer_name} 
                         className="w-12 h-12 rounded-full object-cover border-2 border-bakery-primary"
                       />
                       <div>
-                        <h4 className="font-bold font-sans text-white">{testimonial.name}</h4>
-                        <p className="text-sm text-bakery-sand">{testimonial.role}</p>
+                        {isEditing ? (
+                          <EditableText
+                            value={testimonial.customer_name}
+                            onSave={async (newValue) => {
+                              await saveField('testimonials', 'customer_name', newValue, testimonial.id);
+                              setTestimonials(testimonials.map(t => t.id === testimonial.id ? { ...t, customer_name: newValue } : t));
+                            }}
+                            tag="h4"
+                            className="font-bold font-sans text-white"
+                          />
+                        ) : (
+                          <h4 className="font-bold font-sans text-white">{testimonial.customer_name}</h4>
+                        )}
+                        {testimonial.customer_role && (
+                          isEditing ? (
+                            <EditableText
+                              value={testimonial.customer_role}
+                              onSave={async (newValue) => {
+                                await saveField('testimonials', 'customer_role', newValue, testimonial.id);
+                                setTestimonials(testimonials.map(t => t.id === testimonial.id ? { ...t, customer_role: newValue } : t));
+                              }}
+                              tag="p"
+                              className="text-sm text-bakery-sand"
+                            />
+                          ) : (
+                            <p className="text-sm text-bakery-sand">{testimonial.customer_role}</p>
+                          )
+                        )}
                       </div>
                     </div>
                   </div>
@@ -139,23 +226,27 @@ export const Testimonials: React.FC = () => {
           </div>
 
           {/* Controls */}
-          <button 
-            onClick={prevSlide}
-            disabled={index === 0}
-            className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 md:-translate-x-12 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all disabled:opacity-30 disabled:cursor-not-allowed z-20 ${index === 0 ? 'hidden' : 'block'}`}
-            aria-label="Previous testimonials"
-          >
-            <ChevronLeft size={24} />
-          </button>
-          
-          <button 
-            onClick={nextSlide}
-            disabled={index === maxIndex}
-            className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 md:translate-x-12 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all disabled:opacity-30 disabled:cursor-not-allowed z-20 ${index === maxIndex ? 'hidden' : 'block'}`}
-            aria-label="Next testimonials"
-          >
-            <ChevronRight size={24} />
-          </button>
+          {!isEditing && (
+            <>
+              <button 
+                onClick={prevSlide}
+                disabled={index === 0}
+                className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 md:-translate-x-12 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all disabled:opacity-30 disabled:cursor-not-allowed z-20 ${index === 0 ? 'hidden' : 'block'}`}
+                aria-label="Previous testimonials"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              
+              <button 
+                onClick={nextSlide}
+                disabled={index === maxIndex}
+                className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 md:translate-x-12 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all disabled:opacity-30 disabled:cursor-not-allowed z-20 ${index === maxIndex ? 'hidden' : 'block'}`}
+                aria-label="Next testimonials"
+              >
+                <ChevronRight size={24} />
+              </button>
+            </>
+          )}
         </div>
 
         {/* Indicators */}

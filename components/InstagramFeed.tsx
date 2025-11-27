@@ -1,52 +1,51 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Instagram, Heart, MessageCircle, ExternalLink } from 'lucide-react';
-
-const posts = [
-  {
-    id: 1,
-    image: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=600&q=80",
-    alt: "Fresh croissants on a cooling rack",
-    likes: 243,
-    comments: 18
-  },
-  {
-    id: 2,
-    image: "https://images.unsplash.com/photo-1517433670267-08bbd4be890f?auto=format&fit=crop&w=600&q=80",
-    alt: "Baker dusting flour on dough",
-    likes: 189,
-    comments: 12
-  },
-  {
-    id: 3,
-    image: "https://images.unsplash.com/photo-1612203985729-70726954388c?auto=format&fit=crop&w=600&q=80",
-    alt: "Artisan sourdough bread loaf",
-    likes: 567,
-    comments: 45
-  },
-  {
-    id: 4,
-    image: "https://images.unsplash.com/photo-1495147466023-ac5c588e2e94?auto=format&fit=crop&w=600&q=80",
-    alt: "Cupcakes with vanilla frosting",
-    likes: 321,
-    comments: 28
-  },
-  {
-    id: 5,
-    image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=600&q=80",
-    alt: "Rustic bread selection",
-    likes: 412,
-    comments: 36
-  },
-  {
-    id: 6,
-    image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=600&q=80",
-    alt: "Morning coffee and pastries",
-    likes: 156,
-    comments: 9
-  }
-];
+import { supabase, getWebsiteId } from '../src/lib/supabase';
+import type { InstagramFeedConfig, InstagramFeedItem } from '../src/types/database.types';
 
 export const InstagramFeed: React.FC = () => {
+  const [content, setContent] = useState<InstagramFeedConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchInstagramFeed();
+  }, []);
+
+  const fetchInstagramFeed = async () => {
+    try {
+      const websiteId = await getWebsiteId();
+      if (!websiteId) return;
+
+      const { data, error } = await supabase
+        .from('instagram_feed_config')
+        .select('*')
+        .eq('website_id', websiteId)
+        .single();
+
+      if (error) throw error;
+      setContent(data as InstagramFeedConfig);
+    } catch (error) {
+      console.error('Error fetching Instagram feed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <section className="py-20 bg-bakery-cream flex items-center justify-center min-h-[300px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bakery-primary mx-auto mb-4"></div>
+          <p className="font-sans text-gray-600">Loading...</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (!content) return null;
+
+  const posts = (content.feed_items as InstagramFeedItem[]) || [];
+
   return (
     <section className="py-20 bg-bakery-cream">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -54,33 +53,45 @@ export const InstagramFeed: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-2 text-bakery-accent">
-              <Instagram size={20} />
-              <span className="font-bold font-sans tracking-wider text-sm uppercase">@TheGoldenCrumb</span>
-            </div>
+            {content.instagram_handle && (
+              <div className="flex items-center gap-2 mb-2 text-bakery-accent">
+                <Instagram size={20} />
+                <span className="font-bold font-sans tracking-wider text-sm uppercase">{content.instagram_handle}</span>
+              </div>
+            )}
             <h2 className="font-serif text-3xl md:text-4xl font-bold text-bakery-dark">
-              Follow the Aroma
+              {content.heading}
             </h2>
+            {content.subheading && (
+              <p className="text-gray-600 mt-2">{content.subheading}</p>
+            )}
           </div>
-          <a 
-            href="#" 
-            className="flex items-center gap-2 text-bakery-primary font-bold font-serif border-b-2 border-bakery-primary pb-1 hover:text-bakery-dark transition-colors group"
-          >
-            <span>View Profile</span>
-            <ExternalLink size={16} className="group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
-          </a>
+          {content.instagram_url && (
+            <a 
+              href={content.instagram_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-bakery-primary font-bold font-serif border-b-2 border-bakery-primary pb-1 hover:text-bakery-dark transition-colors group"
+            >
+              <span>View Profile</span>
+              <ExternalLink size={16} className="group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
+            </a>
+          )}
         </div>
 
         {/* Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {posts.map((post) => (
-            <div 
-              key={post.id} 
+          {posts.slice(0, content.max_items).map((post, index) => (
+            <a
+              key={index}
+              href={post.post_url}
+              target="_blank"
+              rel="noopener noreferrer"
               className="group relative aspect-square overflow-hidden rounded-lg cursor-pointer shadow-md hover:shadow-xl transition-all duration-300"
             >
               <img 
-                src={post.image} 
-                alt={post.alt} 
+                src={post.image_url} 
+                alt={post.caption} 
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
               
@@ -90,12 +101,8 @@ export const InstagramFeed: React.FC = () => {
                   <Heart size={20} fill="white" />
                   <span className="font-bold font-sans">{post.likes}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <MessageCircle size={20} fill="white" />
-                  <span className="font-bold font-sans">{post.comments}</span>
-                </div>
               </div>
-            </div>
+            </a>
           ))}
         </div>
 
