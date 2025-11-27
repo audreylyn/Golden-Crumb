@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Image as ImageIcon } from 'lucide-react';
 import { supabase, getWebsiteId } from '../src/lib/supabase';
 import type { HeroContent, HeroSlide } from '../src/types/database.types';
 import { EditableText } from '../src/components/editor/EditableText';
 import { useEditor } from '../src/contexts/EditorContext';
+import { useWebsite } from '../src/contexts/WebsiteContext';
 
 export const Hero: React.FC = () => {
   const [content, setContent] = useState<HeroContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [current, setCurrent] = useState(0);
   const { isEditing, saveField } = useEditor();
+  const { contentVersion } = useWebsite();
 
   useEffect(() => {
     fetchHeroContent();
-  }, []);
+  }, [contentVersion]); // Refetch when content version changes
 
   const fetchHeroContent = async () => {
     try {
@@ -54,6 +56,22 @@ export const Hero: React.FC = () => {
 
   const nextSlide = () => setCurrent((prev) => (prev + 1) % slides.length);
   const prevSlide = () => setCurrent((prev) => (prev - 1 + slides.length) % slides.length);
+
+  const handleImageChange = async (slideIndex: number) => {
+    const newImageUrl = prompt('Enter new image URL:', slides[slideIndex].image);
+    if (newImageUrl && newImageUrl !== slides[slideIndex].image) {
+      try {
+        const updatedSlides = [...slides];
+        updatedSlides[slideIndex] = { ...updatedSlides[slideIndex], image: newImageUrl };
+        await saveField('hero_content', 'slides', updatedSlides, content.id);
+        setContent({ ...content, slides: updatedSlides as any });
+        alert('Image saved successfully!');
+      } catch (error) {
+        console.error('Error saving image:', error);
+        alert('Failed to save image. Please try again.');
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -100,6 +118,20 @@ export const Hero: React.FC = () => {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Change Image Button - Outside background div for proper z-index */}
+      {isEditing && (
+        <div 
+          className="absolute bottom-4 left-4 cursor-pointer z-50"
+          onClick={() => handleImageChange(current)}
+          title="Click to change background image"
+        >
+          <div className="bg-white/95 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center gap-2 shadow-lg hover:bg-white transition-colors border-2 border-blue-500">
+            <ImageIcon size={20} className="text-gray-700" />
+            <span className="text-gray-700 font-medium text-sm">Change Background Image</span>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="absolute inset-0 flex items-center justify-center text-center px-4 z-10 pointer-events-none">

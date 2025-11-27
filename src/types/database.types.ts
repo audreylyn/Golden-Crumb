@@ -279,6 +279,8 @@ export interface MenuItem {
   is_popular: boolean;
   display_order: number;
   tags?: string[];
+  rating?: number;
+  review_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -309,12 +311,19 @@ export interface WorkingHours {
   sunday: { open: string; close: string; closed: boolean };
 }
 
+export interface ReservationFeature {
+  icon: string;
+  title: string;
+  description: string;
+}
+
 export interface ReservationConfig {
   id: string;
   website_id: string;
   heading: string;
   subheading?: string;
   description?: string;
+  features?: ReservationFeature[];
   working_hours: WorkingHours;
   max_party_size: number;
   time_slot_interval: number;

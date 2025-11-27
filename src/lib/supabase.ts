@@ -18,21 +18,50 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
   },
 });
 
-// Helper function to get the current website by subdomain
-export const getCurrentWebsiteId = async (subdomain: string = 'golden-crumb'): Promise<string | null> => {
-  const { data, error } = await supabase
-    .from('websites')
-    .select('id')
-    .eq('subdomain', subdomain)
-    .eq('is_active', true)
-    .single();
+// Helper function to get the current website by subdomain with retry logic
+export const getCurrentWebsiteId = async (subdomain: string = 'golden-crumb', retries: number = 3): Promise<string | null> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const { data, error } = await supabase
+        .from('websites')
+        .select('id')
+        .eq('subdomain', subdomain)
+        .eq('is_active', true)
+        .single();
 
-  if (error || !data) {
-    if (error) console.error('Error fetching website:', error);
-    return null;
+      if (error) {
+        // If it's a network error (502, CORS, etc.), retry
+        if (error.message?.includes('fetch') || error.message?.includes('NetworkError') || error.code === 'PGRST301') {
+          if (i < retries - 1) {
+            console.warn(`Attempt ${i + 1} failed, retrying...`, error.message);
+            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // Exponential backoff
+            continue;
+          }
+        }
+        console.error('Error fetching website:', error);
+        return null;
+      }
+
+      if (!data) {
+        return null;
+      }
+
+      return (data as { id: string }).id;
+    } catch (error: any) {
+      // Handle network errors
+      if (error instanceof TypeError || error.message?.includes('fetch') || error.message?.includes('NetworkError')) {
+        if (i < retries - 1) {
+          console.warn(`Network error on attempt ${i + 1}, retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+          continue;
+        }
+        console.error('Network error after retries:', error);
+        return null;
+      }
+      throw error;
+    }
   }
-
-  return (data as { id: string }).id;
+  return null;
 };
 
 // For development, we'll use a cached website ID

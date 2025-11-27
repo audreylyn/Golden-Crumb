@@ -3,10 +3,12 @@
  * Wrapper for the editor interface
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, Edit3, User } from 'lucide-react';
+import { ArrowLeft, Eye, Edit3, User, Sparkles } from 'lucide-react';
 import type { UserProfile } from '../../types/auth.types';
+import { ContentGeneratorModal } from './ContentGeneratorModal';
+import { useWebsite } from '../../contexts/WebsiteContext';
 
 interface EditorLayoutProps {
   children: React.ReactNode;
@@ -22,6 +24,8 @@ export const EditorLayout: React.FC<EditorLayoutProps> = ({
   user,
 }) => {
   const navigate = useNavigate();
+  const { currentWebsite } = useWebsite();
+  const [showContentGenerator, setShowContentGenerator] = useState(false);
 
   return (
     <div className="relative">
@@ -38,7 +42,7 @@ export const EditorLayout: React.FC<EditorLayoutProps> = ({
           </button>
 
           {/* Center: Website Title */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-1 justify-center">
             {isEditing ? (
               <Edit3 size={18} className="text-blue-600" />
             ) : (
@@ -52,8 +56,21 @@ export const EditorLayout: React.FC<EditorLayoutProps> = ({
             </span>
           </div>
 
-          {/* Right: User Info */}
+          {/* Right: Actions and User Info */}
           <div className="flex items-center gap-3">
+            {/* Generate Content Button (only in edit mode) */}
+            {isEditing && currentWebsite && (
+              <button
+                onClick={() => setShowContentGenerator(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium"
+                title="Generate AI content for this website"
+              >
+                <Sparkles size={18} />
+                <span className="hidden sm:inline">Generate Content</span>
+              </button>
+            )}
+
+            {/* User Info */}
             <div className="text-right">
               <p className="text-sm font-medium text-gray-900">{user?.full_name || user?.email}</p>
               <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
@@ -79,6 +96,16 @@ export const EditorLayout: React.FC<EditorLayoutProps> = ({
         <div className="fixed top-20 right-4 z-40 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-pulse">
           Click on any text to edit
         </div>
+      )}
+
+      {/* Content Generator Modal */}
+      {currentWebsite && (
+        <ContentGeneratorModal
+          isOpen={showContentGenerator}
+          onClose={() => setShowContentGenerator(false)}
+          websiteId={currentWebsite}
+          websiteTitle={websiteTitle}
+        />
       )}
     </div>
   );

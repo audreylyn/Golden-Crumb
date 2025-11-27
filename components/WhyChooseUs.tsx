@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Leaf, Users, ChefHat, Clock, Heart, Award, CheckCircle, Wheat } from 'lucide-react';
+import { Leaf, Users, ChefHat, Clock, Heart, Award, CheckCircle, Wheat, Star, Shield, Sparkles, Flame, Coffee, Cake, Cookie, Utensils, ShoppingBag, Truck, Gift, Ribbon, Crown, Zap, Target, TrendingUp, ThumbsUp, Smile, Plus, X } from 'lucide-react';
 import { supabase, getWebsiteId } from '../src/lib/supabase';
 import type { WhyChooseUsContent } from '../src/types/database.types';
 import { EditableText } from '../src/components/editor/EditableText';
+import { IconPicker } from '../src/components/editor/IconPicker';
 import { useEditor } from '../src/contexts/EditorContext';
+import { useWebsite } from '../src/contexts/WebsiteContext';
 
-// Icon mapping
+// Icon mapping - handles both kebab-case and camelCase
 const iconMap: Record<string, any> = {
   'chef-hat': ChefHat,
   chefhat: ChefHat,
@@ -15,17 +17,42 @@ const iconMap: Record<string, any> = {
   heart: Heart,
   award: Award,
   'check-circle': CheckCircle,
-  wheat: Wheat
+  'checkcircle': CheckCircle,
+  wheat: Wheat,
+  star: Star,
+  shield: Shield,
+  sparkles: Sparkles,
+  flame: Flame,
+  coffee: Coffee,
+  cake: Cake,
+  cookie: Cookie,
+  utensils: Utensils,
+  'shopping-bag': ShoppingBag,
+  'shoppingbag': ShoppingBag,
+  truck: Truck,
+  gift: Gift,
+  ribbon: Ribbon,
+  crown: Crown,
+  zap: Zap,
+  target: Target,
+  'trending-up': TrendingUp,
+  'trendingup': TrendingUp,
+  'thumbs-up': ThumbsUp,
+  'thumbsup': ThumbsUp,
+  smile: Smile,
 };
 
 export const WhyChooseUs: React.FC = () => {
   const [content, setContent] = useState<WhyChooseUsContent | null>(null);
   const [loading, setLoading] = useState(true);
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const [editingIconIndex, setEditingIconIndex] = useState<number | null>(null);
   const { isEditing, saveField } = useEditor();
+  const { contentVersion } = useWebsite();
 
   useEffect(() => {
     fetchContent();
-  }, []);
+  }, [contentVersion]); // Refetch when content version changes
 
   const fetchContent = async () => {
     try {
@@ -103,9 +130,39 @@ export const WhyChooseUs: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                 {reasons.map((reason, index) => {
                   const IconComponent = iconMap[reason.icon] || ChefHat;
+                  
+                  const handleDeleteReason = async () => {
+                    if (window.confirm('Are you sure you want to delete this reason?')) {
+                      try {
+                        const updatedReasons = reasons.filter((_, i) => i !== index);
+                        await saveField('why_choose_us_content', 'reasons', updatedReasons, content.id);
+                        setContent({ ...content, reasons: updatedReasons as any });
+                      } catch (error) {
+                        console.error('Error deleting reason:', error);
+                        alert('Failed to delete reason. Please try again.');
+                      }
+                    }
+                  };
+                  
                   return (
-                    <div key={index} className="bg-white p-10 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-bakery-sand/30 group">
-                        <div className="w-20 h-20 bg-bakery-cream rounded-full flex items-center justify-center text-bakery-primary mb-8 mx-auto group-hover:scale-110 transition-transform duration-300">
+                    <div key={index} className="bg-white p-10 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-bakery-sand/30 group relative">
+                        {isEditing && (
+                          <button
+                            onClick={handleDeleteReason}
+                            className="absolute -top-2 -right-2 z-10 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-lg"
+                            title="Delete reason"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                        <div 
+                          className={`w-20 h-20 bg-bakery-cream rounded-full flex items-center justify-center text-bakery-primary mb-8 mx-auto group-hover:scale-110 transition-transform duration-300 ${isEditing ? 'cursor-pointer hover:ring-2 hover:ring-blue-500' : ''}`}
+                          onClick={isEditing ? () => {
+                            setEditingIconIndex(index);
+                            setIconPickerOpen(true);
+                          } : undefined}
+                          title={isEditing ? 'Click to change icon' : ''}
+                        >
                             <IconComponent size={32} strokeWidth={1.5} />
                         </div>
                         {isEditing ? (
@@ -144,8 +201,55 @@ export const WhyChooseUs: React.FC = () => {
                     </div>
                   );
                 })}
+                {isEditing && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const newReason = {
+                          icon: 'chef-hat',
+                          title: 'New Reason',
+                          description: 'Reason description'
+                        };
+                        const updatedReasons = [...reasons, newReason];
+                        await saveField('why_choose_us_content', 'reasons', updatedReasons, content.id);
+                        setContent({ ...content, reasons: updatedReasons as any });
+                      } catch (error) {
+                        console.error('Error adding reason:', error);
+                        alert('Failed to add reason. Please try again.');
+                      }
+                    }}
+                    className="flex flex-col items-center justify-center gap-2 p-10 border-2 border-dashed border-gray-300 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition-colors text-gray-500 hover:text-blue-600 bg-white"
+                    title="Add new reason"
+                  >
+                    <Plus size={32} />
+                    <span className="text-sm font-medium">Add Reason</span>
+                  </button>
+                )}
             </div>
         </div>
+
+        {/* Icon Picker Modal */}
+        <IconPicker
+          isOpen={iconPickerOpen}
+          onClose={() => {
+            setIconPickerOpen(false);
+            setEditingIconIndex(null);
+          }}
+          onSelect={async (iconName: string) => {
+            if (editingIconIndex === null) return;
+            try {
+              const updatedReasons = [...reasons];
+              updatedReasons[editingIconIndex] = { ...updatedReasons[editingIconIndex], icon: iconName };
+              await saveField('why_choose_us_content', 'reasons', updatedReasons, content.id);
+              setContent({ ...content, reasons: updatedReasons as any });
+            } catch (error) {
+              console.error('Error saving icon:', error);
+              alert('Failed to save icon. Please try again.');
+            }
+          }}
+          currentIcon={editingIconIndex !== null ? reasons[editingIconIndex]?.icon : undefined}
+          availableIcons={['ChefHat', 'Leaf', 'Users', 'Clock', 'Heart', 'Award', 'CheckCircle', 'Wheat', 'Star', 'Shield', 'Sparkles', 'Flame', 'Coffee', 'Cake', 'Cookie', 'Utensils', 'ShoppingBag', 'Truck', 'Gift', 'Ribbon', 'Crown', 'Zap', 'Target', 'TrendingUp', 'ThumbsUp', 'Smile']}
+        />
     </section>
   );
 };

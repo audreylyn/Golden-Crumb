@@ -77,22 +77,45 @@ export const RequireWebsiteAccess: React.FC<{ children: React.ReactNode }> = ({ 
   const { user, loading, canAccessWebsite } = useAuth();
   const { currentWebsite, loading: websiteLoading } = useWebsite();
   const [hasAccess, setHasAccess] = React.useState<boolean | null>(null);
+  const [checkingAccess, setCheckingAccess] = React.useState(false);
 
   React.useEffect(() => {
-    checkAccess();
-  }, [user, currentWebsite]);
+    // Only check access when both user and website are loaded
+    if (loading || websiteLoading) {
+      return; // Still loading, don't check yet
+    }
 
-  const checkAccess = async () => {
-    if (!currentWebsite) {
-      setHasAccess(false);
+    if (!user) {
+      // User not authenticated, but don't set hasAccess yet - let RequireAuth handle it
       return;
     }
 
-    const access = await canAccessWebsite(currentWebsite);
-    setHasAccess(access);
+    if (!currentWebsite) {
+      // No website detected yet, keep hasAccess as null (still checking)
+      return;
+    }
+
+    // Both user and website are ready, check access
+    checkAccess();
+  }, [user, loading, currentWebsite, websiteLoading]);
+
+  const checkAccess = async () => {
+    if (!currentWebsite || !user) return;
+
+    setCheckingAccess(true);
+    try {
+      const access = await canAccessWebsite(currentWebsite);
+      setHasAccess(access);
+    } catch (error) {
+      console.error('Error checking access:', error);
+      setHasAccess(false);
+    } finally {
+      setCheckingAccess(false);
+    }
   };
 
-  if (loading || websiteLoading || hasAccess === null) {
+  // Show loading while checking auth/website or checking access
+  if (loading || websiteLoading || checkingAccess || (user && currentWebsite && hasAccess === null)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -121,7 +144,8 @@ export const RequireWebsiteAccess: React.FC<{ children: React.ReactNode }> = ({ 
     );
   }
 
-  if (!hasAccess) {
+  // Only show access denied if we've actually checked and confirmed no access
+  if (hasAccess === false) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center max-w-md mx-auto p-8">

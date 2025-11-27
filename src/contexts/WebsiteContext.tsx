@@ -15,9 +15,11 @@ export const WebsiteProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [websiteData, setWebsiteData] = useState<any | null>(null);
   const [sectionVisibility, setSectionVisibility] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
+  const [contentVersion, setContentVersion] = useState(0); // Version counter for refresh
 
   useEffect(() => {
-    detectAndLoadWebsite();
+    // Don't block render - load website data asynchronously
+    detectAndLoadWebsite().catch(console.error);
   }, []);
 
   const detectAndLoadWebsite = async () => {
@@ -26,18 +28,20 @@ export const WebsiteProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       if (websiteId) {
         setCurrentWebsite(websiteId);
-        await loadWebsiteData(websiteId);
+        // Load website data asynchronously - don't block render
+        loadWebsiteData(websiteId).catch(console.error);
       }
     } catch (error) {
       console.error('Error detecting website:', error);
     } finally {
+      // Set loading to false immediately so app can render
       setLoading(false);
     }
   };
 
   const loadWebsiteData = async (websiteId: string) => {
     try {
-      // Load website data and section visibility in parallel
+      // Load website data, section visibility, and theme preset in parallel
       const [websiteResult, sectionsResult] = await Promise.all([
         supabase
           .from('websites')
@@ -52,6 +56,23 @@ export const WebsiteProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (websiteResult.error) throw websiteResult.error;
       setWebsiteData(websiteResult.data);
+
+      // Load theme preset if website has one
+      if (websiteResult.data?.theme_preset_id) {
+        const { data: themeData, error: themeError } = await supabase
+          .from('theme_presets')
+          .select('*')
+          .eq('id', websiteResult.data.theme_preset_id)
+          .single();
+
+        if (!themeError && themeData?.colors) {
+          // Apply theme colors as CSS variables
+          applyThemeColors(themeData.colors);
+        }
+      } else {
+        // Apply default theme if no preset selected
+        applyDefaultTheme();
+      }
 
       // Build section visibility map
       if (sectionsResult.data) {
@@ -69,9 +90,43 @@ export const WebsiteProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const applyThemeColors = (colors: any) => {
+    const root = document.documentElement;
+    root.style.setProperty('--bakery-primary', colors.primary || '#8B4513');
+    root.style.setProperty('--bakery-accent', colors.accent || '#D2691E');
+    root.style.setProperty('--bakery-cream', colors.cream || '#FFF8E7');
+    root.style.setProperty('--bakery-dark', colors.dark || '#5D4037');
+    root.style.setProperty('--bakery-light', colors.light || '#FFFFFF');
+    root.style.setProperty('--bakery-text', colors.text || '#333333');
+    // Use beige/sand from theme if available, otherwise derive from cream or use defaults
+    root.style.setProperty('--bakery-beige', colors.beige || colors.cream || '#F5F5DC');
+    root.style.setProperty('--bakery-sand', colors.sand || colors.cream || '#E6DCC3');
+  };
+
+  const applyDefaultTheme = () => {
+    const root = document.documentElement;
+    root.style.setProperty('--bakery-primary', '#8B4513');
+    root.style.setProperty('--bakery-accent', '#D2691E');
+    root.style.setProperty('--bakery-cream', '#FFF8E7');
+    root.style.setProperty('--bakery-dark', '#5D4037');
+    root.style.setProperty('--bakery-light', '#FFFFFF');
+    root.style.setProperty('--bakery-text', '#333333');
+    root.style.setProperty('--bakery-beige', '#F5F5DC');
+    root.style.setProperty('--bakery-sand', '#E6DCC3');
+  };
+
   const changeWebsite = async (websiteId: string) => {
     setCurrentWebsite(websiteId);
     await loadWebsiteData(websiteId);
+  };
+
+  const refreshContent = () => {
+    // Increment version to trigger components to refetch
+    setContentVersion(prev => prev + 1);
+    // Also reload website data if we have a current website
+    if (currentWebsite) {
+      loadWebsiteData(currentWebsite).catch(console.error);
+    }
   };
 
   const value: WebsiteContextType = {
@@ -80,6 +135,8 @@ export const WebsiteProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setCurrentWebsite: changeWebsite,
     loading,
     sectionVisibility,
+    refreshContent,
+    contentVersion,
   };
 
   return <WebsiteContext.Provider value={value}>{children}</WebsiteContext.Provider>;
@@ -88,7 +145,16 @@ export const WebsiteProvider: React.FC<{ children: React.ReactNode }> = ({ child
 export const useWebsite = () => {
   const context = useContext(WebsiteContext);
   if (context === undefined) {
-    throw new Error('useWebsite must be used within a WebsiteProvider');
+    // Return default values if not in provider (for components that might be used outside)
+    return {
+      currentWebsite: null,
+      websiteData: null,
+      setCurrentWebsite: async () => {},
+      loading: false,
+      sectionVisibility: {},
+      refreshContent: () => {},
+      contentVersion: 0,
+    };
   }
   return context;
 };

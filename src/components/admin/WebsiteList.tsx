@@ -6,8 +6,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Globe, Plus, ExternalLink, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Globe, Plus, ExternalLink, Edit, Trash2, Eye, EyeOff, Palette, Sparkles } from 'lucide-react';
 import { buildWebsiteUrl } from '../../lib/website-detector';
+import { initializeWebsiteContent } from '../../lib/initialize-website-content';
 
 interface Website {
   id: string;
@@ -27,11 +28,34 @@ export const WebsiteList: React.FC = () => {
   const [newWebsite, setNewWebsite] = useState({
     site_title: '',
     subdomain: '',
+    theme_preset_id: '',
   });
+  const [themePresets, setThemePresets] = useState<any[]>([]);
 
   useEffect(() => {
     loadWebsites();
+    loadThemePresets();
   }, []);
+
+  const loadThemePresets = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('theme_presets')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order');
+      
+      if (error) throw error;
+      setThemePresets(data || []);
+      
+      // Set default theme if available
+      if (data && data.length > 0 && !newWebsite.theme_preset_id) {
+        setNewWebsite({ ...newWebsite, theme_preset_id: data[0].id });
+      }
+    } catch (error) {
+      console.error('Error loading theme presets:', error);
+    }
+  };
 
   const loadWebsites = async () => {
     try {
@@ -53,26 +77,32 @@ export const WebsiteList: React.FC = () => {
     e.preventDefault();
     
     try {
-      // Get default theme
-      const { data: theme } = await supabase
-        .from('theme_presets')
-        .select('id')
-        .eq('name', 'golden-warmth')
-        .single();
+      // Use selected theme or default
+      let themeId = newWebsite.theme_preset_id;
+      if (!themeId && themePresets.length > 0) {
+        themeId = themePresets[0].id;
+      }
 
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('websites')
         .insert([{
           site_title: newWebsite.site_title,
           subdomain: newWebsite.subdomain,
-          theme_preset_id: theme?.id,
+          theme_preset_id: themeId,
           is_active: true,
-        }]);
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
 
+      // Initialize default content for the new website
+      if (data) {
+        await initializeWebsiteContent(data.id);
+      }
+
       alert('Website created successfully!');
-      setNewWebsite({ site_title: '', subdomain: '' });
+      setNewWebsite({ site_title: '', subdomain: '', theme_preset_id: themePresets[0]?.id || '' });
       loadWebsites();
     } catch (error: any) {
       alert(`Error: ${error.message}`);
@@ -142,34 +172,70 @@ export const WebsiteList: React.FC = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Create New Website</h2>
           <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Website Title
-                </label>
-                <input
-                  type="text"
-                  value={newWebsite.site_title}
-                  onChange={(e) => setNewWebsite({ ...newWebsite, site_title: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="My Bakery"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Subdomain
-                </label>
-                <div className="flex items-center gap-2">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Website Title
+                  </label>
                   <input
                     type="text"
-                    value={newWebsite.subdomain}
-                    onChange={(e) => setNewWebsite({ ...newWebsite, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="my-bakery"
+                    value={newWebsite.site_title}
+                    onChange={(e) => setNewWebsite({ ...newWebsite, site_title: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="My Bakery"
                     required
                   />
-                  <span className="text-sm text-gray-500">.likhasiteworks.dev</span>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Subdomain
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={newWebsite.subdomain}
+                      onChange={(e) => setNewWebsite({ ...newWebsite, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="my-bakery"
+                      required
+                    />
+                    <span className="text-sm text-gray-500">.likhasiteworks.dev</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Theme Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                  <Palette size={16} />
+                  Color Scheme (Light Theme)
+                </label>
+                <div className="grid grid-cols-5 gap-3">
+                  {themePresets.map((theme) => (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      onClick={() => setNewWebsite({ ...newWebsite, theme_preset_id: theme.id })}
+                      className={`p-3 rounded-lg border-2 transition text-left ${
+                        newWebsite.theme_preset_id === theme.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex gap-1 mb-2">
+                        {Object.values(theme.colors).slice(0, 4).map((color: any, idx) => (
+                          <div
+                            key={idx}
+                            className="w-6 h-6 rounded border border-gray-300"
+                            style={{ backgroundColor: color }}
+                            title={Object.keys(theme.colors)[idx]}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-xs font-medium text-gray-700">{theme.display_name}</p>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -253,6 +319,13 @@ export const WebsiteList: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <Link
+                      to={`/admin/websites/${website.id}/content`}
+                      className="p-2 text-purple-600 hover:bg-purple-100 rounded-lg transition"
+                      title="AI Content Generation"
+                    >
+                      <Sparkles size={18} />
+                    </Link>
                     <a
                       href={buildWebsiteUrl(website.subdomain)}
                       target="_blank"

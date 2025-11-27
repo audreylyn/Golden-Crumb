@@ -28,7 +28,11 @@ export const Contact: React.FC = () => {
   const fetchContactInfo = async () => {
     try {
       const websiteId = await getWebsiteId();
-      if (!websiteId) return;
+      if (!websiteId) {
+        console.warn('No website ID found for contact info');
+        setLoading(false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('contact_info')
@@ -36,10 +40,24 @@ export const Contact: React.FC = () => {
         .eq('website_id', websiteId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Don't throw on 406 (not found) - just log and continue
+        if (error.code === 'PGRST116') {
+          console.warn('No contact info found for this website');
+        } else {
+          throw error;
+        }
+        return;
+      }
+      
       setContent(data as ContactInfo);
-    } catch (error) {
-      console.error('Error fetching contact info:', error);
+    } catch (error: any) {
+      // Handle network errors gracefully
+      if (error instanceof TypeError || error.message?.includes('fetch') || error.message?.includes('NetworkError')) {
+        console.error('Network error fetching contact info. Supabase may be temporarily unavailable.');
+      } else {
+        console.error('Error fetching contact info:', error);
+      }
     } finally {
       setLoading(false);
     }

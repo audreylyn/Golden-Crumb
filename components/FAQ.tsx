@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, HelpCircle } from 'lucide-react';
+import { ChevronDown, HelpCircle, Plus, X } from 'lucide-react';
 import { supabase, getWebsiteId } from '../src/lib/supabase';
 import type { FAQ as FAQType, FAQConfig } from '../src/types/database.types';
 import { EditableText } from '../src/components/editor/EditableText';
@@ -107,11 +107,40 @@ export const FAQ: React.FC = () => {
         </div>
 
         <div className="space-y-4">
-          {faqs.map((faq, index) => (
-            <div 
-              key={index} 
-              className="border border-bakery-sand/30 rounded-xl overflow-hidden bg-bakery-cream/20"
-            >
+          {faqs.map((faq, index) => {
+            const handleDeleteFAQ = async () => {
+              if (window.confirm('Are you sure you want to delete this FAQ?')) {
+                try {
+                  const { error } = await supabase
+                    .from('faqs')
+                    .delete()
+                    .eq('id', faq.id);
+                  
+                  if (error) throw error;
+                  
+                  // Remove from local state
+                  setFaqs(faqs.filter(f => f.id !== faq.id));
+                } catch (error) {
+                  console.error('Error deleting FAQ:', error);
+                  alert('Failed to delete FAQ. Please try again.');
+                }
+              }
+            };
+
+            return (
+              <div 
+                key={faq.id || index} 
+                className="border border-bakery-sand/30 rounded-xl overflow-hidden bg-bakery-cream/20 relative"
+              >
+                {isEditing && (
+                  <button
+                    onClick={handleDeleteFAQ}
+                    className="absolute top-2 right-2 z-10 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-lg"
+                    title="Delete FAQ"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               <button
                 onClick={() => !isEditing && toggleFAQ(index)}
                 className="w-full flex items-center justify-between p-5 text-left focus:outline-none hover:bg-bakery-cream/50 transition-colors"
@@ -170,7 +199,51 @@ export const FAQ: React.FC = () => {
                 )}
               </AnimatePresence>
             </div>
-          ))}
+            );
+          })}
+          {isEditing && (
+            <button
+              onClick={async () => {
+                try {
+                  const websiteId = await getWebsiteId();
+                  if (!websiteId) {
+                    alert('No website ID found. Please refresh the page.');
+                    return;
+                  }
+
+                  // Get the highest display_order
+                  const maxOrder = faqs.length > 0 
+                    ? Math.max(...faqs.map(f => f.display_order || 0))
+                    : -1;
+
+                  // Insert new FAQ
+                  const { data: newFAQ, error } = await supabase
+                    .from('faqs')
+                    .insert({
+                      website_id: websiteId,
+                      question: 'New Question',
+                      answer: 'New Answer',
+                      display_order: maxOrder + 1
+                    })
+                    .select()
+                    .single();
+
+                  if (error) throw error;
+
+                  // Add to local state
+                  setFaqs([...faqs, newFAQ as FAQType]);
+                } catch (error) {
+                  console.error('Error adding FAQ:', error);
+                  alert('Failed to add FAQ. Please try again.');
+                }
+              }}
+              className="w-full flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-colors text-gray-500 hover:text-blue-600 bg-white"
+              title="Add new FAQ"
+            >
+              <Plus size={24} />
+              <span className="text-sm font-medium">Add FAQ</span>
+            </button>
+          )}
         </div>
       </div>
     </section>

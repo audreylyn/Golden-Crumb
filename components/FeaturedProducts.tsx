@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MenuItem } from '../types';
-import { ShoppingBag, Star, ArrowRight } from 'lucide-react';
+import { ShoppingBag, Star, ArrowRight, Image as ImageIcon } from 'lucide-react';
 import { supabase, getWebsiteId } from '../src/lib/supabase';
 import type { Product, FeaturedProductsConfig } from '../src/types/database.types';
 import { EditableText } from '../src/components/editor/EditableText';
@@ -84,6 +84,27 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({ addToCart })
 
   if (!config || products.length === 0) return null;
 
+  const handleImageChange = async (item: MenuItem) => {
+    const dbProduct = dbProducts.find(db => db.name === item.name);
+    if (!dbProduct) {
+      alert('Product not found. Please refresh the page.');
+      return;
+    }
+    
+    const newImageUrl = prompt('Enter new image URL:', dbProduct.image_url || '');
+    if (newImageUrl !== null && newImageUrl !== dbProduct.image_url) {
+      try {
+        await saveField('products', 'image_url', newImageUrl, dbProduct.id);
+        setDbProducts(dbProducts.map(db => db.id === dbProduct.id ? { ...db, image_url: newImageUrl } : db));
+        setProducts(products.map(p => p.id === item.id ? { ...p, image: newImageUrl } : p));
+        alert('Image saved successfully!');
+      } catch (error) {
+        console.error('Error saving image:', error);
+        alert('Failed to save image. Please try again.');
+      }
+    }
+  };
+
   return (
     <section className="py-24 bg-white relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -146,6 +167,20 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({ addToCart })
                       <Star size={14} className="text-bakery-accent fill-bakery-accent" />
                       <span className="text-xs font-bold font-sans text-bakery-dark tracking-wide uppercase">Top Pick</span>
                    </div>
+                   
+                   {/* Change Image Button */}
+                   {isEditing && (
+                     <div 
+                       className="absolute top-4 left-4 cursor-pointer z-50"
+                       onClick={() => handleImageChange(item)}
+                       title="Click to change image"
+                     >
+                       <div className="bg-white/95 backdrop-blur-sm rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-lg hover:bg-white transition-colors border-2 border-blue-500">
+                         <ImageIcon size={16} className="text-gray-700" />
+                         <span className="text-gray-700 font-medium text-xs">Change Image</span>
+                       </div>
+                     </div>
+                   )}
                    
                    {/* Hover Overlay & Button */}
                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />

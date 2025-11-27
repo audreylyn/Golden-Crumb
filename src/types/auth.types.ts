@@ -73,5 +73,7 @@ export interface WebsiteContextType {
   setCurrentWebsite: (websiteId: string) => void;
   loading: boolean;
   sectionVisibility: Record<string, boolean>; // Map of section_name -> is_enabled
+  refreshContent: () => void; // Trigger components to refetch data
+  contentVersion: number; // Version number that increments on refresh
 }
 
