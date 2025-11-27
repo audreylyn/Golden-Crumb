@@ -1,0 +1,218 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { MessageCircle, X, Send, Minimize2, Croissant, User } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+
+interface Message {
+  id: number;
+  text: string;
+  sender: 'user' | 'bot';
+  timestamp: Date;
+}
+
+export const ChatSupport: React.FC = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
+    { 
+      id: 1, 
+      text: "Hello! Welcome to The Golden Crumb. 🥖 How can we help you today?", 
+      sender: 'bot',
+      timestamp: new Date()
+    }
+  ]);
+  const [inputValue, setInputValue] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const toggleChat = () => setIsOpen(!isOpen);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isOpen, isTyping]);
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim()) return;
+
+    const userMsg: Message = {
+      id: Date.now(),
+      text: inputValue,
+      sender: 'user',
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMsg]);
+    setInputValue("");
+    setIsTyping(true);
+
+    // Simulate bot response
+    setTimeout(() => {
+      let botText = "Thanks for your message! One of our bakers will get back to you shortly.";
+      const lowerInput = userMsg.text.toLowerCase();
+
+      if (lowerInput.includes('menu') || lowerInput.includes('food') || lowerInput.includes('bread') || lowerInput.includes('cake')) {
+        botText = "You can view our full daily selection in the Menu section above! We have fresh sourdough, croissants, cakes, and artisan pastries.";
+      } else if (lowerInput.includes('hour') || lowerInput.includes('open') || lowerInput.includes('time')) {
+        botText = "We are open Monday-Friday from 7:00 AM to 7:00 PM, and weekends from 8:00 AM to 5:00 PM.";
+      } else if (lowerInput.includes('location') || lowerInput.includes('address') || lowerInput.includes('where')) {
+        botText = "We are located at 123 Baker Street, Culinary District, FL 33101. We'd love to see you!";
+      } else if (lowerInput.includes('delivery') || lowerInput.includes('order') || lowerInput.includes('shipping')) {
+        botText = "We offer local delivery within a 5-mile radius for orders over ₱500. You can also find us on GrabFood and FoodPanda for instant delivery.";
+      } else if (lowerInput.includes('gluten') || lowerInput.includes('vegan') || lowerInput.includes('allergy')) {
+        botText = "Yes! We bake fresh gluten-free muffins and bread daily. We also have a selection of vegan pastries like our fruit tarts.";
+      }
+
+      const botMsg: Message = {
+        id: Date.now() + 1,
+        text: botText,
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, botMsg]);
+      setIsTyping(false);
+    }, 1500);
+  };
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  return (
+    <>
+      {/* Floating Button */}
+      <motion.button
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={toggleChat}
+        className={`fixed bottom-8 right-8 z-40 p-5 rounded-full shadow-2xl transition-colors flex items-center justify-center ${
+            isOpen ? 'bg-bakery-dark text-white rotate-90' : 'bg-bakery-primary text-white hover:bg-bakery-accent'
+        }`}
+      >
+        {isOpen ? <X size={28} /> : <MessageCircle size={32} />}
+        {!isOpen && messages.length === 1 && (
+            <span className="absolute -top-1 -right-1 flex h-4 w-4">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500"></span>
+            </span>
+        )}
+      </motion.button>
+
+      {/* Chat Window */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-28 right-8 w-[90vw] md:w-[400px] h-[600px] max-h-[75vh] bg-white rounded-3xl shadow-2xl z-40 flex flex-col overflow-hidden border border-bakery-sand/50 font-sans"
+          >
+            {/* Header */}
+            <div className="bg-bakery-dark p-5 flex items-center gap-4 shadow-lg relative z-10">
+                <div className="relative">
+                    <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white backdrop-blur-sm border border-white/20">
+                        <MessageCircle size={24} />
+                    </div>
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-bakery-dark rounded-full"></div>
+                </div>
+                <div>
+                    <h3 className="text-white font-serif font-bold text-xl leading-tight">Support</h3>
+                    <p className="text-bakery-sand/90 text-xs mt-0.5">Typically replies in minutes</p>
+                </div>
+                <button 
+                    onClick={() => setIsOpen(false)} 
+                    className="ml-auto text-white/60 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full"
+                >
+                    <Minimize2 size={20} />
+                </button>
+            </div>
+
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-bakery-cream/30 scroll-smooth">
+                {messages.map((msg) => (
+                    <div
+                        key={msg.id}
+                        className={`flex items-end gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                        {/* Bot Avatar */}
+                        {msg.sender === 'bot' && (
+                          <div className="w-8 h-8 rounded-full bg-bakery-primary/10 flex items-center justify-center flex-shrink-0 border border-bakery-primary/20">
+                             <Croissant size={16} className="text-bakery-primary" />
+                          </div>
+                        )}
+
+                        <div className={`flex flex-col max-w-[75%] ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                            <div
+                                className={`px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                                    msg.sender === 'user'
+                                        ? 'bg-bakery-primary text-white rounded-br-none'
+                                        : 'bg-white text-gray-700 border border-bakery-sand rounded-bl-none'
+                                }`}
+                            >
+                                {msg.text}
+                            </div>
+                            <span className="text-[10px] text-gray-400 mt-1 px-1">
+                                {formatTime(msg.timestamp)}
+                            </span>
+                        </div>
+
+                         {/* User Avatar */}
+                         {msg.sender === 'user' && (
+                          <div className="w-8 h-8 rounded-full bg-bakery-dark flex items-center justify-center flex-shrink-0 shadow-sm">
+                             <User size={16} className="text-white" />
+                          </div>
+                        )}
+                    </div>
+                ))}
+                
+                {isTyping && (
+                    <div className="flex items-end gap-3 justify-start">
+                         <div className="w-8 h-8 rounded-full bg-bakery-primary/10 flex items-center justify-center flex-shrink-0 border border-bakery-primary/20">
+                             <Croissant size={16} className="text-bakery-primary" />
+                          </div>
+                         <div className="bg-white text-gray-500 border border-bakery-sand px-4 py-3 rounded-2xl rounded-bl-none text-xs flex gap-1 items-center shadow-sm">
+                            <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
+                            <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-100"></span>
+                            <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-200"></span>
+                        </div>
+                    </div>
+                )}
+                <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Area */}
+            <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-bakery-sand/50 z-10">
+                <div className="relative flex items-center">
+                    <input
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        placeholder="Write a message..."
+                        className="w-full bg-gray-50 border border-gray-200 rounded-full pl-5 pr-14 py-3 text-sm focus:outline-none focus:border-bakery-primary focus:ring-1 focus:ring-bakery-primary/20 transition-all font-sans placeholder-gray-400"
+                    />
+                    <button
+                        type="submit"
+                        disabled={!inputValue.trim()}
+                        className="absolute right-2 bg-bakery-primary hover:bg-bakery-dark text-white p-2 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:scale-105 active:scale-95"
+                    >
+                        <Send size={16} className={inputValue.trim() ? 'ml-0.5' : ''} />
+                    </button>
+                </div>
+                <div className="text-center mt-3">
+                     <span className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
+                        Powered by The Golden Crumb Team
+                     </span>
+                </div>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+};
