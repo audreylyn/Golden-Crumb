@@ -37,52 +37,59 @@ self.addEventListener('fetch', (event) => {
   const fetchStartTime = Date.now();
   
   event.respondWith(
-    Promise.race([
-      // Try to fetch from network with timeout
-      new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Request timeout'));
-        }, LOAD_TIMEOUT);
-
-        fetch(event.request)
-          .then((response) => {
-            clearTimeout(timeout);
-            const fetchTime = Date.now() - fetchStartTime;
-            
-            // Log slow requests
-            if (fetchTime > 5000) {
-              console.warn(`[SW] Slow request detected: ${url.pathname} took ${fetchTime}ms`);
-            }
-            
-            // Clone the response for caching
-            const responseToCache = response.clone();
-            
-            // Cache successful responses
-            if (response.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-            }
-            
-            resolve(response);
-          })
-          .catch((error) => {
-            clearTimeout(timeout);
-            reject(error);
+    (async () => {
+      // Try network first
+      try {
+        const networkResponse = await fetch(event.request);
+        const fetchTime = Date.now() - fetchStartTime;
+        
+        // Log slow requests
+        if (fetchTime > 5000) {
+          console.warn(`[SW] Slow request detected: ${url.pathname} took ${fetchTime}ms`);
+        }
+        
+        // Clone the response for caching
+        const responseToCache = networkResponse.clone();
+        
+        // Cache successful responses (only cache 200 status)
+        if (networkResponse.status === 200) {
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache).catch((err) => {
+              console.warn(`[SW] Failed to cache ${url.pathname}:`, err);
+            });
           });
-      }),
-      // Fallback to cache if network fails or times out
-      caches.match(event.request).then((cachedResponse) => {
+        }
+        
+        return networkResponse;
+      } catch (networkError) {
+        // Network failed, try cache
+        console.log(`[SW] Network failed for ${url.pathname}, trying cache...`);
+        const cachedResponse = await caches.match(event.request);
+        
+        // IMPORTANT: cachedResponse can be null, so we must check before returning
         if (cachedResponse) {
           console.log(`[SW] Serving from cache: ${url.pathname}`);
           return cachedResponse;
         }
-        throw new Error('No cache available');
-      })
-    ]).catch((error) => {
-      console.error(`[SW] Fetch failed for ${url.pathname}:`, error);
-      // Return a basic offline response if available
-      return caches.match(event.request);
+        
+        // No cache available - the original fetch failed
+        // Return the network error as a Response to avoid undefined
+        console.warn(`[SW] No cache available for ${url.pathname}`);
+        // Re-throw to be caught by outer handler, which will return a proper error Response
+        throw networkError;
+      }
+    })().catch((error) => {
+      // Final fallback: if everything fails, we must return a valid Response
+      // This prevents the "undefined" error that was occurring
+      console.error(`[SW] All fetch strategies failed for ${url.pathname}:`, error);
+      // Return a proper error response instead of undefined
+      return new Response('', {
+        status: 503,
+        statusText: 'Service Unavailable',
+        headers: {
+          'Content-Type': 'text/plain'
+        }
+      });
     })
   );
 });
