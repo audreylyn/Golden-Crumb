@@ -427,13 +427,6 @@ export const WebsiteList: React.FC = () => {
                     >
                       <Palette size={18} />
                     </Link>
-                    <Link
-                      to={`/admin/websites/${website.id}/content`}
-                      className="p-2 text-purple-600 hover:bg-purple-100 rounded-lg transition"
-                      title="AI Content Generation"
-                    >
-                      <Sparkles size={18} />
-                    </Link>
                     <a
                       href={buildWebsiteUrl(website.subdomain)}
                       target="_blank"

@@ -12,7 +12,6 @@ import { WebsiteEditor } from '../components/admin/WebsiteEditor';
 import { UserManagement } from '../components/admin/UserManagement';
 import { Settings } from '../components/admin/Settings';
 import { SectionManager } from '../components/admin/SectionManager';
-import { ContentManagement } from '../components/admin/ContentManagement';
 
 export const AdminPage: React.FC = () => {
   return (
@@ -21,7 +20,6 @@ export const AdminPage: React.FC = () => {
         <Route index element={<Dashboard />} />
         <Route path="websites" element={<WebsiteList />} />
         <Route path="websites/:websiteId" element={<WebsiteEditor />} />
-        <Route path="websites/:websiteId/content" element={<ContentManagement />} />
         <Route path="sections" element={<SectionManager />} />
         <Route path="users" element={<UserManagement />} />
         <Route path="settings" element={<Settings />} />
