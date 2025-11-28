@@ -2,14 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Minimize2, Croissant, User } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase, getWebsiteId } from '../src/lib/supabase';
-// Use fast version (no database) or regular version (with database)
-// Uncomment the one you want to use:
+// Use regular version (with database storage) - supports per-website configuration
+import { sendChatbotMessage } from '../src/lib/chatbot-service';
 
-// Fast version (no database, uses env vars + caching)
-import { sendChatbotMessageFast as sendChatbotMessage } from '../src/lib/chatbot-service-fast';
-
-// Regular version (with database storage)
-// import { sendChatbotMessage } from '../src/lib/chatbot-service';
+// Fast version (no database, uses env vars + caching) - alternative option
+// import { sendChatbotMessageFast as sendChatbotMessage } from '../src/lib/chatbot-service-fast';
 
 interface Message {
   id: number;
