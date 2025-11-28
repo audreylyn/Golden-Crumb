@@ -15,7 +15,7 @@ export function getSubdomain(hostname: string): string | null {
   }
 
   // Extract subdomain
-  // Example: bakery.likhasiteworks.dev → bakery
+  // Example: bakery.likhasiteworks.studio → bakery
   const parts = hostname.split('.');
   
   // Need at least 3 parts (subdomain.domain.tld)
@@ -143,7 +143,8 @@ export function buildWebsiteUrl(
     return `${base}${editPath}${path}?site=${subdomain}`;
   } else {
     // Production: Use subdomain
-    const domain = 'likhasiteworks.dev'; // Your domain
+    // Use environment variable or default to likhasiteworks.studio
+    const domain = import.meta.env.VITE_DOMAIN || 'likhasiteworks.studio';
     const editPath = mode === 'editor' ? '/edit' : '';
     return `https://${subdomain}.${domain}${editPath}${path}`;
   }

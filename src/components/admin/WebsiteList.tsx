@@ -25,6 +25,9 @@ export const WebsiteList: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [searchParams] = useSearchParams();
   const showNewForm = searchParams.get('new') === 'true';
+  
+  // Get domain from environment variable or use default
+  const domain = import.meta.env.VITE_DOMAIN || 'likhasiteworks.studio';
 
   const [newWebsite, setNewWebsite] = useState({
     site_title: '',
@@ -229,7 +232,7 @@ export const WebsiteList: React.FC = () => {
                       placeholder="my-bakery"
                       required
                     />
-                    <span className="text-sm text-gray-500">.likhasiteworks.dev</span>
+                    <span className="text-sm text-gray-500">.{domain}</span>
                   </div>
                 </div>
               </div>
@@ -408,7 +411,7 @@ export const WebsiteList: React.FC = () => {
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline"
                       >
-                        {website.subdomain}.likhasiteworks.dev
+                        {website.subdomain}.{domain}
                       </a>
                     </p>
                     <p className="text-xs text-gray-500">

@@ -18,6 +18,9 @@ export const WebsiteEditor: React.FC = () => {
   const [themePresets, setThemePresets] = useState<ThemePreset[]>([]);
   const [contactInfo, setContactInfo] = useState<any>(null);
   const [facebookMessengerId, setFacebookMessengerId] = useState('');
+  
+  // Get domain from environment variable or use default
+  const domain = import.meta.env.VITE_DOMAIN || 'likhasiteworks.studio';
 
   useEffect(() => {
     loadData();
@@ -185,7 +188,7 @@ export const WebsiteEditor: React.FC = () => {
                   onChange={(e) => setWebsite({ ...website, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                <span className="text-sm text-gray-500">.likhasiteworks.dev</span>
+                <span className="text-sm text-gray-500">.{domain}</span>
               </div>
             </div>
           </div>
