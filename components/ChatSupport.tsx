@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Minimize2, Croissant, User } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase, getWebsiteId } from '../src/lib/supabase';
+import { sendChatbotMessage } from '../src/lib/chatbot-service';
 
 interface Message {
   id: number;
@@ -24,6 +25,7 @@ export const ChatSupport: React.FC = () => {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const toggleChat = () => setIsOpen(!isOpen);
@@ -99,7 +101,14 @@ export const ChatSupport: React.FC = () => {
     }
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  // Initialize conversation ID on mount
+  useEffect(() => {
+    if (!conversationId) {
+      setConversationId(`conv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+    }
+  }, []);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
 
@@ -111,36 +120,34 @@ export const ChatSupport: React.FC = () => {
     };
 
     setMessages(prev => [...prev, userMsg]);
+    const userMessageText = inputValue;
     setInputValue("");
     setIsTyping(true);
 
-    // Simulate bot response
-    setTimeout(() => {
-      let botText = "Thanks for your message! One of our bakers will get back to you shortly.";
-      const lowerInput = userMsg.text.toLowerCase();
-
-      if (lowerInput.includes('menu') || lowerInput.includes('food') || lowerInput.includes('bread') || lowerInput.includes('cake')) {
-        botText = "You can view our full daily selection in the Menu section above! We have fresh sourdough, croissants, cakes, and artisan pastries.";
-      } else if (lowerInput.includes('hour') || lowerInput.includes('open') || lowerInput.includes('time')) {
-        botText = "We are open Monday-Friday from 7:00 AM to 7:00 PM, and weekends from 8:00 AM to 5:00 PM.";
-      } else if (lowerInput.includes('location') || lowerInput.includes('address') || lowerInput.includes('where')) {
-        botText = "We are located at 123 Baker Street, Culinary District, FL 33101. We'd love to see you!";
-      } else if (lowerInput.includes('delivery') || lowerInput.includes('order') || lowerInput.includes('shipping')) {
-        botText = "We offer local delivery within a 5-mile radius for orders over ₱500. You can also find us on GrabFood and FoodPanda for instant delivery.";
-      } else if (lowerInput.includes('gluten') || lowerInput.includes('vegan') || lowerInput.includes('allergy')) {
-        botText = "Yes! We bake fresh gluten-free muffins and bread daily. We also have a selection of vegan pastries like our fruit tarts.";
-      }
-
+    try {
+      // Use chatbot service to get response
+      const botResponse = await sendChatbotMessage(userMessageText, conversationId);
+      
       const botMsg: Message = {
         id: Date.now() + 1,
-        text: botText,
+        text: botResponse,
         sender: 'bot',
         timestamp: new Date()
       };
       
       setMessages(prev => [...prev, botMsg]);
+    } catch (error) {
+      console.error('Error getting chatbot response:', error);
+      const errorMsg: Message = {
+        id: Date.now() + 1,
+        text: "I'm sorry, I'm having trouble processing your message. Please try again.",
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const formatTime = (date: Date) => {

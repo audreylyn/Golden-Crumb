@@ -20,6 +20,11 @@ export const WebsiteEditor: React.FC = () => {
   const [facebookMessengerId, setFacebookMessengerId] = useState('');
   const [chatSupportEnabled, setChatSupportEnabled] = useState(false);
   const [chatSupportConfig, setChatSupportConfig] = useState<any>(null);
+  const [chatbotProvider, setChatbotProvider] = useState<'simple' | 'botpress' | 'dialogflow' | 'openai' | 'custom'>('simple');
+  const [chatbotApiKey, setChatbotApiKey] = useState('');
+  const [chatbotBotId, setChatbotBotId] = useState('');
+  const [chatbotWebhookUrl, setChatbotWebhookUrl] = useState('');
+  const [chatbotConfigJson, setChatbotConfigJson] = useState('{}');
   
   // Get domain from environment variable or use default
   const domain = import.meta.env.VITE_DOMAIN || 'likhasiteworks.studio';
@@ -74,6 +79,11 @@ export const WebsiteEditor: React.FC = () => {
       if (!chatError && chatData) {
         setChatSupportConfig(chatData);
         setChatSupportEnabled(chatData.is_enabled || false);
+        setChatbotProvider(chatData.chatbot_provider || 'simple');
+        setChatbotApiKey(chatData.chatbot_api_key || '');
+        setChatbotBotId(chatData.chatbot_bot_id || '');
+        setChatbotWebhookUrl(chatData.chatbot_webhook_url || '');
+        setChatbotConfigJson(JSON.stringify(chatData.chatbot_config || {}, null, 2));
       } else if (chatError && chatError.code === 'PGRST116') {
         // Chat support config doesn't exist, create default (disabled)
         const { data: newChatData, error: createError } = await supabase
@@ -150,12 +160,24 @@ export const WebsiteEditor: React.FC = () => {
         if (contactError) throw contactError;
       }
 
-      // Update chat support config
+      // Update chat support config with chatbot settings
+      let chatbotConfig = {};
+      try {
+        chatbotConfig = JSON.parse(chatbotConfigJson);
+      } catch (e) {
+        console.warn('Invalid chatbot config JSON, using empty object');
+      }
+
       if (chatSupportConfig && websiteId) {
         const { error: chatError } = await supabase
           .from('chat_support_config')
           .update({
             is_enabled: chatSupportEnabled,
+            chatbot_provider: chatbotProvider,
+            chatbot_api_key: chatbotApiKey || null,
+            chatbot_bot_id: chatbotBotId || null,
+            chatbot_webhook_url: chatbotWebhookUrl || null,
+            chatbot_config: chatbotConfig,
           })
           .eq('id', chatSupportConfig.id);
 
@@ -170,6 +192,11 @@ export const WebsiteEditor: React.FC = () => {
             greeting_message: 'Hi! How can we help you today?',
             agent_name: 'Support',
             position: 'bottom-right',
+            chatbot_provider: chatbotProvider,
+            chatbot_api_key: chatbotApiKey || null,
+            chatbot_bot_id: chatbotBotId || null,
+            chatbot_webhook_url: chatbotWebhookUrl || null,
+            chatbot_config: chatbotConfig,
           });
 
         if (chatError) throw chatError;
@@ -324,7 +351,7 @@ export const WebsiteEditor: React.FC = () => {
 
             {/* Chat Support Toggle */}
             <div className="border-t border-gray-200 pt-6">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Chat Support
@@ -347,6 +374,103 @@ export const WebsiteEditor: React.FC = () => {
                   />
                 </button>
               </div>
+
+              {/* Chatbot Configuration */}
+              {chatSupportEnabled && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Chatbot Provider
+                    </label>
+                    <select
+                      value={chatbotProvider}
+                      onChange={(e) => setChatbotProvider(e.target.value as any)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="simple">Simple (Rule-based)</option>
+                      <option value="botpress">Botpress</option>
+                      <option value="dialogflow">Dialogflow (Google)</option>
+                      <option value="openai">OpenAI GPT</option>
+                      <option value="custom">Custom Webhook</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {chatbotProvider === 'simple' && 'Basic keyword matching (free)'}
+                      {chatbotProvider === 'botpress' && 'Professional chatbot platform with visual builder'}
+                      {chatbotProvider === 'dialogflow' && 'Google\'s conversational AI'}
+                      {chatbotProvider === 'openai' && 'GPT-powered intelligent chatbot'}
+                      {chatbotProvider === 'custom' && 'Your own webhook-based chatbot'}
+                    </p>
+                  </div>
+
+                  {chatbotProvider !== 'simple' && (
+                    <>
+                      {chatbotProvider !== 'custom' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            API Key
+                          </label>
+                          <input
+                            type="password"
+                            value={chatbotApiKey}
+                            onChange={(e) => setChatbotApiKey(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                            placeholder="Enter your API key"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Your API key is stored securely. See guide for setup instructions.
+                          </p>
+                        </div>
+                      )}
+
+                      {(chatbotProvider === 'botpress' || chatbotProvider === 'dialogflow') && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Bot ID
+                          </label>
+                          <input
+                            type="text"
+                            value={chatbotBotId}
+                            onChange={(e) => setChatbotBotId(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder={chatbotProvider === 'botpress' ? 'Your Botpress Bot ID' : 'Google Cloud Project ID'}
+                          />
+                        </div>
+                      )}
+
+                      {chatbotProvider === 'custom' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Webhook URL
+                          </label>
+                          <input
+                            type="url"
+                            value={chatbotWebhookUrl}
+                            onChange={(e) => setChatbotWebhookUrl(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="https://your-api.com/chatbot"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Advanced Config (JSON)
+                        </label>
+                        <textarea
+                          value={chatbotConfigJson}
+                          onChange={(e) => setChatbotConfigJson(e.target.value)}
+                          rows={4}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                          placeholder='{"model": "gpt-3.5-turbo", "temperature": 0.7}'
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Provider-specific configuration. See integration guide for examples.
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
