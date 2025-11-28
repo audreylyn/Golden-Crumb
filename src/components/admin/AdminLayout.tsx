@@ -28,8 +28,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error: any) {
+      console.error('Error signing out:', error);
+      // Even if signOut fails, navigate to login
+      navigate('/login');
+    }
   };
 
   const navItems = [
@@ -87,6 +93,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             </div>
           </div>
           <button
+            type="button"
             onClick={handleSignOut}
             className="w-full flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition text-sm font-medium"
           >

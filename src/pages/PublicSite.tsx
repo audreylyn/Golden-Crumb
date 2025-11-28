@@ -127,6 +127,49 @@ export const PublicSite: React.FC = () => {
     );
   }
 
+  // Show error if website not found or inactive
+  if (!loading && !currentWebsite) {
+    const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+    const siteParam = params.get('site') || params.get('website');
+    
+    // Check if website exists but is inactive
+    const inactiveWebsite = typeof window !== 'undefined' ? sessionStorage.getItem('inactive_website') : null;
+    
+    if (inactiveWebsite || (siteParam && typeof window !== 'undefined' && sessionStorage.getItem('inactive_website'))) {
+      const subdomain = inactiveWebsite || siteParam;
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center max-w-md p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Website Unavailable</h2>
+            <p className="text-gray-600 mb-4">
+              The website "{subdomain}" is currently unavailable. It has been temporarily deactivated.
+            </p>
+            <p className="text-sm text-gray-500">
+              Please contact the website administrator if you believe this is an error.
+            </p>
+          </div>
+        </div>
+      );
+    }
+    
+    // Website not found
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md p-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Website Not Found</h2>
+          <p className="text-gray-600 mb-4">
+            {siteParam 
+              ? `The website "${siteParam}" was not found in the database.`
+              : 'No website was detected. Please access the site with ?site=subdomain parameter.'}
+          </p>
+          <p className="text-sm text-gray-500">
+            Make sure the website exists in your database and the subdomain is correct.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-bakery-cream overflow-x-hidden">
       <Navbar 

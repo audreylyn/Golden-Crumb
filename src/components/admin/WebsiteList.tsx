@@ -143,15 +143,23 @@ export const WebsiteList: React.FC = () => {
 
   const handleToggleActive = async (id: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('websites')
         .update({ is_active: !currentStatus })
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
-      if (error) throw error;
-      loadWebsites();
+      if (error) {
+        console.error('Error toggling website status:', error);
+        alert(`Error: ${error.message || 'Failed to update website status'}`);
+        return;
+      }
+
+      // Reload websites to reflect the change
+      await loadWebsites();
     } catch (error: any) {
-      alert(`Error: ${error.message}`);
+      console.error('Error toggling website status:', error);
+      alert(`Error: ${error.message || 'Failed to update website status'}`);
     }
   };
 
@@ -446,6 +454,7 @@ export const WebsiteList: React.FC = () => {
                       <Edit size={18} />
                     </a>
                     <button
+                      type="button"
                       onClick={() => handleToggleActive(website.id, website.is_active)}
                       className={`p-2 rounded-lg transition ${
                         website.is_active

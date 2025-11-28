@@ -79,19 +79,45 @@ export async function detectWebsiteId(): Promise<string | null> {
       return null;
     }
 
+    // Check if user is authenticated (admins can access inactive websites)
+    const { data: { user } } = await supabase.auth.getUser();
+    
     // Fetch website by subdomain
-    const { data, error } = await supabase
+    let query = supabase
       .from('websites')
-      .select('id')
-      .eq('subdomain', subdomain)
-      .eq('is_active', true)
-      .single();
+      .select('id, is_active')
+      .eq('subdomain', subdomain);
+    
+    // Only filter by is_active if user is not authenticated
+    // (authenticated users can access inactive websites via admin policy)
+    if (!user) {
+      query = query.eq('is_active', true);
+    }
+    
+    const { data, error } = await query.single();
 
     if (error) {
+      // If website exists but is inactive and user is not authenticated
+      if (error.code === 'PGRST116' || error.message?.includes('No rows')) {
+        // Check if website exists but is inactive
+        const { data: inactiveWebsite } = await supabase
+          .from('websites')
+          .select('id, is_active')
+          .eq('subdomain', subdomain)
+          .maybeSingle();
+        
+        if (inactiveWebsite && !inactiveWebsite.is_active) {
+          // Store in sessionStorage to show appropriate message
+          sessionStorage.setItem('inactive_website', subdomain);
+        }
+      }
       console.error('Error fetching website by subdomain:', error);
       return null;
     }
 
+    // Clear any previous inactive website flag
+    sessionStorage.removeItem('inactive_website');
+    
     return data?.id || null;
   } catch (error) {
     console.error('Error detecting website:', error);
