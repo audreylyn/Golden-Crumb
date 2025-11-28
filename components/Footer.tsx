@@ -39,11 +39,15 @@ export const Footer: React.FC = () => {
       }
 
       // Load website data for site title
-      const { data: websiteData } = await supabase
+      const { data: websiteData, error: websiteError } = await supabase
         .from('websites')
         .select('site_title')
         .eq('id', websiteId)
         .single();
+      
+      if (websiteError) {
+        console.error('Error loading website data:', websiteError);
+      }
 
       // Load navbar content for brand name (for display in footer)
       const { data: navbarData } = await supabase
@@ -66,12 +70,11 @@ export const Footer: React.FC = () => {
       if (!footerError && footerData) {
         setFooterContent(footerData);
         if (footerData.about_text) setAboutText(footerData.about_text);
-        if (footerData.copyright_text) {
-          setCopyrightText(footerData.copyright_text);
-        } else {
-          const websiteName = websiteData?.site_title || (navbarData?.brand_name || 'Website');
-          setCopyrightText(`© ${new Date().getFullYear()} ${websiteName}. All rights reserved.`);
-        }
+        // Always generate copyright text dynamically with current year and correct website name
+        const websiteName = websiteData?.site_title || (navbarData?.brand_name || 'Website');
+        const currentYear = new Date().getFullYear();
+        // Always generate copyright text dynamically to ensure correct website name and year
+        setCopyrightText(`© ${currentYear} ${websiteName}. All rights reserved.`);
         
         // Load social links from contact_info
         const { data: contactData } = await supabase
