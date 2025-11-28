@@ -561,6 +561,7 @@ export interface ChatSupportConfig {
   chatbot_bot_id?: string;
   chatbot_webhook_url?: string;
   chatbot_config?: Record<string, any>;
+  knowledge_base?: string;
   created_at: string;
   updated_at: string;
 }

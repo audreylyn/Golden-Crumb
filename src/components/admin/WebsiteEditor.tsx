@@ -25,6 +25,7 @@ export const WebsiteEditor: React.FC = () => {
   const [chatbotBotId, setChatbotBotId] = useState('');
   const [chatbotWebhookUrl, setChatbotWebhookUrl] = useState('');
   const [chatbotConfigJson, setChatbotConfigJson] = useState('{}');
+  const [knowledgeBase, setKnowledgeBase] = useState('');
   
   // Get domain from environment variable or use default
   const domain = import.meta.env.VITE_DOMAIN || 'likhasiteworks.studio';
@@ -84,6 +85,7 @@ export const WebsiteEditor: React.FC = () => {
         setChatbotBotId(chatData.chatbot_bot_id || '');
         setChatbotWebhookUrl(chatData.chatbot_webhook_url || '');
         setChatbotConfigJson(JSON.stringify(chatData.chatbot_config || {}, null, 2));
+        setKnowledgeBase(chatData.knowledge_base || '');
       } else if (chatError && chatError.code === 'PGRST116') {
         // Chat support config doesn't exist, create default (disabled)
         const { data: newChatData, error: createError } = await supabase
@@ -178,6 +180,7 @@ export const WebsiteEditor: React.FC = () => {
             chatbot_bot_id: chatbotBotId || null,
             chatbot_webhook_url: chatbotWebhookUrl || null,
             chatbot_config: chatbotConfig,
+            knowledge_base: knowledgeBase || null,
           })
           .eq('id', chatSupportConfig.id);
 
@@ -197,6 +200,7 @@ export const WebsiteEditor: React.FC = () => {
             chatbot_bot_id: chatbotBotId || null,
             chatbot_webhook_url: chatbotWebhookUrl || null,
             chatbot_config: chatbotConfig,
+            knowledge_base: knowledgeBase || null,
           });
 
         if (chatError) throw chatError;
@@ -469,6 +473,27 @@ export const WebsiteEditor: React.FC = () => {
                       </div>
                     </>
                   )}
+
+                  {/* Knowledge Base - Available for all providers */}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Knowledge Base
+                    </label>
+                    <textarea
+                      value={knowledgeBase}
+                      onChange={(e) => setKnowledgeBase(e.target.value)}
+                      rows={8}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="Enter your business information, FAQs, product details, policies, etc.&#10;&#10;Example:&#10;Business Name: The Golden Crumb Bakery&#10;Location: 123 Baker Street, Culinary District&#10;Hours: Monday-Friday 7AM-7PM, Weekends 8AM-5PM&#10;Specialties: Fresh sourdough, croissants, artisan pastries&#10;Delivery: Available for orders over ₱500 within 5 miles&#10;Contact: Phone (555) 123-4567, Email info@bakery.com"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Store your business information, FAQs, product details, and policies here. 
+                      {chatbotProvider === 'openai' && ' This will be automatically included in the system prompt.'}
+                      {chatbotProvider === 'botpress' && ' You can also manage knowledge base in Botpress dashboard.'}
+                      {chatbotProvider === 'dialogflow' && ' You can also create intents in Dialogflow console.'}
+                      {chatbotProvider === 'custom' && ' Your webhook will receive this in the request.'}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
