@@ -30,14 +30,33 @@ const PublicSiteRouter: React.FC = () => {
   return <Navigate to="/" replace />;
 };
 
+// Root Route Component - Detects subdomain and shows appropriate page
+const RootRoute: React.FC = () => {
+  const hostname = window.location.hostname;
+  const params = new URLSearchParams(window.location.search);
+  const hasWebsiteParam = params.has('site') || params.has('website');
+  
+  // Check if we're on a subdomain (production) or have website param (development)
+  const isLocalhost = hostname === 'localhost' || hostname.startsWith('127.0.0.1');
+  const hasSubdomain = !isLocalhost && hostname.split('.').length >= 3;
+  
+  // If we have a subdomain or website param, show public site
+  if (hasSubdomain || hasWebsiteParam) {
+    return <PublicSite />;
+  }
+  
+  // Otherwise show login page
+  return <Login />;
+};
+
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <WebsiteProvider>
           <Routes>
-            {/* Root Route - Login Page */}
-            <Route path="/" element={<Login />} />
+            {/* Root Route - Shows PublicSite if subdomain detected, otherwise Login */}
+            <Route path="/" element={<RootRoute />} />
 
             {/* Login Route (also accessible) */}
             <Route path="/login" element={<Login />} />
