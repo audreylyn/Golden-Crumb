@@ -18,6 +18,20 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      // Optimize dependencies to reduce number of files Chrome needs to load
+      optimizeDeps: {
+        // Force pre-bundling of these dependencies
+        include: [
+          'react',
+          'react-dom',
+          'react-router-dom',
+          '@supabase/supabase-js',
+          'framer-motion',
+          'lucide-react'
+        ],
+        // Exclude these from pre-bundling (if needed)
+        exclude: []
       }
     };
 });
