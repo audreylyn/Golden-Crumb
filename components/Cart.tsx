@@ -89,13 +89,16 @@ export const Cart: React.FC<CartProps> = ({
     // Ensure we always use HTTPS (required for m.me)
     const url = `https://m.me/${facebookMessengerId}?text=${encodedMessage}`;
     
-    // Use the exact same simple approach as your working code
-    window.open(url, '_blank');
-    
-    // Clear cart and close (matching your working code exactly)
+    // Clear cart and close first (before navigation)
     onClear();
     setCustomerDetails({ name: '', location: '', message: '' });
     onClose();
+    
+    // Small delay to allow cart to close, then open Messenger
+    // Opening in same window avoids Facebook's new window timing issues
+    setTimeout(() => {
+      window.location.href = url;
+    }, 100);
   };
 
   return (
