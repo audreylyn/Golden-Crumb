@@ -28,13 +28,14 @@ export const WebsiteProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       if (websiteId) {
         setCurrentWebsite(websiteId);
-        // Load website data asynchronously - don't block render
-        loadWebsiteData(websiteId).catch(console.error);
+        // Load website data and wait for it to complete before setting loading to false
+        await loadWebsiteData(websiteId);
+      } else {
+        // No website found, stop loading
+        setLoading(false);
       }
     } catch (error) {
       console.error('Error detecting website:', error);
-    } finally {
-      // Set loading to false immediately so app can render
       setLoading(false);
     }
   };
@@ -85,8 +86,12 @@ export const WebsiteProvider: React.FC<{ children: React.ReactNode }> = ({ child
         // If no sections found, default all to enabled
         setSectionVisibility({});
       }
+      
+      // Only set loading to false after all data is loaded
+      setLoading(false);
     } catch (error) {
       console.error('Error loading website data:', error);
+      setLoading(false);
     }
   };
 
