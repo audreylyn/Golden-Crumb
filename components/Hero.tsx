@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Image as ImageIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
 import { supabase, getWebsiteId } from '../src/lib/supabase';
 import type { HeroContent, HeroSlide } from '../src/types/database.types';
 import { EditableText } from '../src/components/editor/EditableText';
@@ -73,6 +73,73 @@ export const Hero: React.FC = () => {
     }
   };
 
+  const handleAddSlide = async () => {
+    if (!content) return;
+    
+    try {
+      // Generate a new ID (use max existing ID + 1, or Date.now() if no slides)
+      const maxId = slides.length > 0 
+        ? Math.max(...slides.map(s => s.id || 0))
+        : 0;
+      const newId = maxId + 1;
+      
+      // Get max order value
+      const maxOrder = slides.length > 0
+        ? Math.max(...slides.map(s => s.order || 0))
+        : -1;
+      
+      const newSlide: HeroSlide = {
+        id: newId,
+        image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=1920',
+        title: 'New Slide Title',
+        subtitle: 'New slide subtitle',
+        order: maxOrder + 1
+      };
+      
+      const updatedSlides = [...slides, newSlide];
+      await saveField('hero_content', 'slides', updatedSlides, content.id);
+      setContent({ ...content, slides: updatedSlides as any });
+      
+      // Switch to the new slide
+      setCurrent(updatedSlides.length - 1);
+    } catch (error) {
+      console.error('Error adding slide:', error);
+      alert('Failed to add slide. Please try again.');
+    }
+  };
+
+  const handleDeleteSlide = async () => {
+    if (!content || slides.length <= 1) {
+      alert('Cannot delete the last slide. You must have at least one slide.');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete this slide?\n\n"${slides[current].title}"`)) {
+      return;
+    }
+    
+    try {
+      const updatedSlides = slides.filter((_, idx) => idx !== current);
+      
+      // Reorder slides to maintain sequential order
+      const reorderedSlides = updatedSlides.map((slide, idx) => ({
+        ...slide,
+        order: idx
+      }));
+      
+      await saveField('hero_content', 'slides', reorderedSlides, content.id);
+      setContent({ ...content, slides: reorderedSlides as any });
+      
+      // Adjust current index if needed
+      if (current >= updatedSlides.length) {
+        setCurrent(updatedSlides.length - 1);
+      }
+    } catch (error) {
+      console.error('Error deleting slide:', error);
+      alert('Failed to delete slide. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <section id="hero" className="relative h-[90vh] overflow-hidden bg-bakery-dark flex items-center justify-center">
@@ -119,16 +186,41 @@ export const Hero: React.FC = () => {
         </AnimatePresence>
       </div>
 
-      {/* Change Image Button - Outside background div for proper z-index */}
+      {/* Editor Controls - Outside background div for proper z-index */}
       {isEditing && (
-        <div 
-          className="absolute bottom-4 left-4 cursor-pointer z-50"
-          onClick={() => handleImageChange(current)}
-          title="Click to change background image"
-        >
-          <div className="bg-white/95 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center gap-2 shadow-lg hover:bg-white transition-colors border-2 border-blue-500">
-            <ImageIcon size={20} className="text-gray-700" />
-            <span className="text-gray-700 font-medium text-sm">Change Background Image</span>
+        <div className="absolute bottom-4 left-4 flex flex-col gap-2 z-50">
+          {/* Change Image Button */}
+          <div 
+            className="cursor-pointer"
+            onClick={() => handleImageChange(current)}
+            title="Click to change background image"
+          >
+            <div className="bg-white/95 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center gap-2 shadow-lg hover:bg-white transition-colors border-2 border-blue-500">
+              <ImageIcon size={20} className="text-gray-700" />
+              <span className="text-gray-700 font-medium text-sm">Change Background Image</span>
+            </div>
+          </div>
+          
+          {/* Add/Delete Slide Buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={handleAddSlide}
+              className="bg-white/95 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center gap-2 shadow-lg hover:bg-white transition-colors border-2 border-green-500"
+              title="Add a new slide"
+            >
+              <Plus size={20} className="text-gray-700" />
+              <span className="text-gray-700 font-medium text-sm">Add Slide</span>
+            </button>
+            
+            <button
+              onClick={handleDeleteSlide}
+              disabled={slides.length <= 1}
+              className="bg-white/95 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center gap-2 shadow-lg hover:bg-white transition-colors border-2 border-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={slides.length <= 1 ? "Cannot delete the last slide" : "Delete current slide"}
+            >
+              <Trash2 size={20} className="text-gray-700" />
+              <span className="text-gray-700 font-medium text-sm">Delete Slide</span>
+            </button>
           </div>
         </div>
       )}
