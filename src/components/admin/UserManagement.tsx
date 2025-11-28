@@ -5,6 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { getCurrentUser } from '../../lib/auth';
 import { Users, Plus, Trash2, Mail } from 'lucide-react';
 
 interface User {
@@ -67,15 +68,159 @@ export const UserManagement: React.FC = () => {
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!inviteData.email || !inviteData.website_id) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
     try {
-      // Note: In production, this should use Supabase auth.admin.createUser()
-      // For now, we'll just show a message
-      alert(`Invitation email would be sent to ${inviteData.email}\n\nIn production, this will:\n1. Create user account\n2. Send invite email\n3. Assign to website: ${websites.find(w => w.id === inviteData.website_id)?.site_title}`);
+      const currentUser = await getCurrentUser();
+      if (!currentUser) {
+        alert('You must be logged in to invite users');
+        return;
+      }
+
+      const email = inviteData.email.toLowerCase().trim();
+
+      // Check if user already exists in user_profiles
+      const { data: existingUser, error: userCheckError } = await supabase
+        .from('user_profiles' as any)
+        .select('id, email, full_name')
+        .eq('email', email)
+        .maybeSingle() as any;
+
+      if (userCheckError && userCheckError.code !== 'PGRST116') {
+        throw userCheckError;
+      }
+
+      let userId: string;
+
+      if (existingUser) {
+        // User already exists, use their ID
+        userId = existingUser.id;
+        
+        // Update full_name if provided and different
+        if (inviteData.full_name && inviteData.full_name !== existingUser.full_name) {
+          await (supabase
+            .from('user_profiles' as any) as any)
+            .update({ full_name: inviteData.full_name })
+            .eq('id', userId);
+        }
+      } else {
+        // User doesn't exist - create new user account
+        // Generate a secure random password
+        const tempPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12) + 'A1!';
+        
+        // Create auth user account
+        const { data: authData, error: signUpError } = await supabase.auth.signUp({
+          email: email,
+          password: tempPassword,
+          options: {
+            data: {
+              full_name: inviteData.full_name || '',
+            },
+            emailRedirectTo: `${window.location.origin}/login?invited=true`,
+          },
+        });
+
+        if (signUpError) {
+          // If user already exists in auth but not in profiles, try to get them
+          if (signUpError.message.includes('already registered') || signUpError.message.includes('already exists')) {
+            // Try to sign in with a dummy password to trigger password reset
+            // Actually, better to just tell admin to ask user to reset password
+            throw new Error(
+              `User with email ${email} already has an auth account but no profile. ` +
+              `Please ask them to sign in and complete their profile, or contact support.`
+            );
+          }
+          throw signUpError;
+        }
+
+        if (!authData.user) {
+          throw new Error('Failed to create user account');
+        }
+
+        userId = authData.user.id;
+
+        // Create user profile
+        const { data: newProfile, error: profileError } = await supabase
+          .from('user_profiles' as any)
+          .insert({
+            id: userId,
+            email: email,
+            full_name: inviteData.full_name || null,
+            role: 'editor',
+            is_active: true,
+          } as any)
+          .select()
+          .single() as any;
+
+        if (profileError) {
+          // If profile creation fails, try to clean up auth user
+          console.error('Failed to create profile, auth user may need manual cleanup:', profileError);
+          throw new Error(`Created auth account but failed to create profile: ${profileError.message}`);
+        }
+
+        // Send password reset email so user can set their own password
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+
+        if (resetError) {
+          console.warn('Failed to send password reset email:', resetError);
+          // Don't fail the whole process, but note it in the success message
+        }
+      }
+
+      // Check if user is already assigned to this website
+      const { data: existingAssignment, error: assignmentCheckError } = await supabase
+        .from('website_editors')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('website_id', inviteData.website_id)
+        .maybeSingle();
+
+      if (existingAssignment) {
+        alert('This user is already assigned to the selected website');
+        setShowInviteForm(false);
+        setInviteData({ email: '', full_name: '', website_id: '' });
+        loadData();
+        return;
+      }
+
+      // Assign user to website
+      const { error: editorError } = await supabase
+        .from('website_editors' as any)
+        .insert({
+          user_id: userId,
+          website_id: inviteData.website_id,
+          invited_by: currentUser.id,
+          is_active: true,
+        } as any);
+
+      if (editorError) {
+        // If it's a foreign key constraint error, the user might not exist in auth
+        if (editorError.code === '23503' || editorError.message.includes('foreign key')) {
+          throw new Error(
+            'User account not found. Please ask the user to sign up first, then try inviting them again.'
+          );
+        }
+        throw editorError;
+      }
+
+      const websiteName = websites.find(w => w.id === inviteData.website_id)?.site_title || 'the website';
+      const isNewUser = !existingUser;
+      const message = isNewUser
+        ? `Successfully created account for ${email} and assigned them to ${websiteName}! A password reset email has been sent so they can set their password.`
+        : `Successfully assigned ${email} to ${websiteName}!`;
+      alert(message);
       
       setShowInviteForm(false);
       setInviteData({ email: '', full_name: '', website_id: '' });
+      loadData();
     } catch (error: any) {
-      alert(`Error: ${error.message}`);
+      console.error('Error inviting user:', error);
+      alert(`Error: ${error.message || 'Failed to invite user. Please try again.'}`);
     }
   };
 

@@ -20,6 +20,7 @@ export const WebsiteEditor: React.FC = () => {
   const [facebookMessengerId, setFacebookMessengerId] = useState('');
   const [chatSupportEnabled, setChatSupportEnabled] = useState(false);
   const [chatSupportConfig, setChatSupportConfig] = useState<any>(null);
+  const [greetingMessage, setGreetingMessage] = useState('Hi! How can we help you today?');
   const [chatbotConfigJson, setChatbotConfigJson] = useState('{"model": "gemini-2.5-flash", "temperature": 0.7}');
   const [knowledgeBaseSheetsUrl, setKnowledgeBaseSheetsUrl] = useState('');
   
@@ -76,6 +77,7 @@ export const WebsiteEditor: React.FC = () => {
       if (!chatError && chatData) {
         setChatSupportConfig(chatData);
         setChatSupportEnabled(chatData.is_enabled || false);
+        setGreetingMessage(chatData.greeting_message || 'Hi! How can we help you today?');
         // Use default config if empty
         const defaultConfig = { model: "gemini-2.5-flash", temperature: 0.7 };
         setChatbotConfigJson(JSON.stringify(chatData.chatbot_config || defaultConfig, null, 2));
@@ -179,6 +181,7 @@ export const WebsiteEditor: React.FC = () => {
           .from('chat_support_config')
           .update({
             is_enabled: chatSupportEnabled,
+            greeting_message: greetingMessage,
             chatbot_provider: 'gemini', // Always use Gemini
             chatbot_api_key: null, // Uses env var, not stored per-website
             chatbot_bot_id: null, // Not needed for Gemini
@@ -196,7 +199,7 @@ export const WebsiteEditor: React.FC = () => {
           .insert({
             website_id: websiteId,
             is_enabled: chatSupportEnabled,
-            greeting_message: 'Hi! How can we help you today?',
+            greeting_message: greetingMessage,
             agent_name: 'Support',
             position: 'bottom-right',
             chatbot_provider: 'gemini', // Always use Gemini
@@ -386,6 +389,23 @@ export const WebsiteEditor: React.FC = () => {
               {/* Chatbot Configuration */}
               {chatSupportEnabled && (
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+                  {/* Greeting Message */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Greeting Message
+                    </label>
+                    <input
+                      type="text"
+                      value={greetingMessage}
+                      onChange={(e) => setGreetingMessage(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Hi! How can we help you today?"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      This message will be shown when users first open the chat widget.
+                    </p>
+                  </div>
+
                   {/* Gemini Info - Uses environment variable */}
                   <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4">
                     <p className="text-sm text-blue-800">
