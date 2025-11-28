@@ -22,7 +22,7 @@ export const ChatSupport: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     { 
       id: 1, 
-      text: "Hello! Welcome to The Golden Crumb. 🥖 How can we help you today?", 
+      text: "Hello! I'm here to help you with your questions. How can I assist you today?", 
       sender: 'bot',
       timestamp: new Date()
     }
@@ -204,8 +204,8 @@ export const ChatSupport: React.FC = () => {
                     <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-bakery-dark rounded-full"></div>
                 </div>
                 <div>
-                    <h3 className="text-white font-serif font-bold text-xl leading-tight">Support</h3>
-                    <p className="text-bakery-sand/90 text-xs mt-0.5">Typically replies in minutes</p>
+                    <h3 className="text-white font-serif font-bold text-xl leading-tight">Chat Support</h3>
+                    <p className="text-white text-xs mt-0.5">Typically replies in minutes</p>
                 </div>
                 <button 
                     onClick={() => setIsOpen(false)} 
@@ -288,7 +288,7 @@ export const ChatSupport: React.FC = () => {
                 </div>
                 <div className="text-center mt-3">
                      <span className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
-                        Powered by LikhaSiteWorks
+                        Powered by LikhaSiteWorks Team
                      </span>
                 </div>
             </form>

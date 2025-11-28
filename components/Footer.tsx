@@ -38,7 +38,14 @@ export const Footer: React.FC = () => {
         return;
       }
 
-      // Load navbar content for brand name
+      // Load website data for site title
+      const { data: websiteData } = await supabase
+        .from('websites')
+        .select('site_title')
+        .eq('id', websiteId)
+        .single();
+
+      // Load navbar content for brand name (for display in footer)
       const { data: navbarData } = await supabase
         .from('navbar_content')
         .select('brand_name')
@@ -62,7 +69,7 @@ export const Footer: React.FC = () => {
         if (footerData.copyright_text) {
           setCopyrightText(footerData.copyright_text);
         } else {
-          const websiteName = navbarData?.brand_name || 'Website';
+          const websiteName = websiteData?.site_title || (navbarData?.brand_name || 'Website');
           setCopyrightText(`© ${new Date().getFullYear()} ${websiteName}. All rights reserved.`);
         }
         
@@ -73,7 +80,7 @@ export const Footer: React.FC = () => {
           .eq('website_id', websiteId)
           .single();
 
-        if (contactData?.social_links) {
+        if (contactData && contactData.social_links) {
           const links: SocialLink[] = [];
           const socials = contactData.social_links as any;
           if (socials.instagram) links.push({ id: '1', platform: 'Instagram', url: socials.instagram, icon: <Instagram size={24} /> });
@@ -85,7 +92,7 @@ export const Footer: React.FC = () => {
         // Set defaults only if no data exists
         if (!footerData) {
           setAboutText('Bringing warmth to your day, one pastry at a time. Baked fresh daily with love and the finest ingredients.');
-          const websiteName = navbarData?.brand_name || 'Website';
+          const websiteName = websiteData?.site_title || (navbarData?.brand_name || 'Website');
           setCopyrightText(`© ${new Date().getFullYear()} ${websiteName}. All rights reserved.`);
         }
       }
@@ -337,7 +344,7 @@ export const Footer: React.FC = () => {
                     href="https://www.likhasiteworks.studio/" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-bakery-primary hover:text-white transition-colors underline"
+                    className="text-white hover:text-white transition-colors underline"
                     onClick={(e) => e.stopPropagation()}
                   >
                     LikhaSiteWorks
@@ -351,7 +358,7 @@ export const Footer: React.FC = () => {
                   href="https://www.likhasiteworks.studio/" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-bakery-primary hover:text-white transition-colors underline"
+                  className="text-white hover:text-white transition-colors underline"
                 >
                   LikhaSiteWorks
                 </a>
