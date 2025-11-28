@@ -157,7 +157,13 @@ export async function sendChatbotMessageFast(
   // Fetch knowledge base if URL is provided
   let knowledgeBase = '';
   if (config.knowledgeBaseUrl) {
-    knowledgeBase = await fetchKnowledgeBase(config.knowledgeBaseUrl);
+    // Convert GitHub Gist URL to raw URL if needed
+    let kbUrl = config.knowledgeBaseUrl;
+    if (kbUrl.includes('gist.github.com') && !kbUrl.includes('/raw/')) {
+      // Convert: https://gist.github.com/user/id to https://gist.githubusercontent.com/user/id/raw
+      kbUrl = kbUrl.replace('gist.github.com', 'gist.githubusercontent.com') + '/raw';
+    }
+    knowledgeBase = await fetchKnowledgeBase(kbUrl);
   }
 
   let response: string;

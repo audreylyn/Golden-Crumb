@@ -26,6 +26,8 @@ export const WebsiteEditor: React.FC = () => {
   const [chatbotWebhookUrl, setChatbotWebhookUrl] = useState('');
   const [chatbotConfigJson, setChatbotConfigJson] = useState('{}');
   const [knowledgeBase, setKnowledgeBase] = useState('');
+  const [knowledgeBaseSource, setKnowledgeBaseSource] = useState<'database' | 'gist'>('database');
+  const [knowledgeBaseGistUrl, setKnowledgeBaseGistUrl] = useState('');
   
   // Get domain from environment variable or use default
   const domain = import.meta.env.VITE_DOMAIN || 'likhasiteworks.studio';
@@ -85,7 +87,17 @@ export const WebsiteEditor: React.FC = () => {
         setChatbotBotId(chatData.chatbot_bot_id || '');
         setChatbotWebhookUrl(chatData.chatbot_webhook_url || '');
         setChatbotConfigJson(JSON.stringify(chatData.chatbot_config || {}, null, 2));
-        setKnowledgeBase(chatData.knowledge_base || '');
+        // Check if knowledge_base is a URL (GitHub Gist)
+        const kbValue = chatData.knowledge_base || '';
+        if (kbValue && (kbValue.startsWith('http://') || kbValue.startsWith('https://'))) {
+          setKnowledgeBaseSource('gist');
+          setKnowledgeBaseGistUrl(kbValue);
+          setKnowledgeBase(''); // Clear text area
+        } else {
+          setKnowledgeBaseSource('database');
+          setKnowledgeBase(kbValue);
+          setKnowledgeBaseGistUrl(''); // Clear Gist URL
+        }
       } else if (chatError && chatError.code === 'PGRST116') {
         // Chat support config doesn't exist, create default (disabled)
         const { data: newChatData, error: createError } = await supabase
@@ -180,7 +192,7 @@ export const WebsiteEditor: React.FC = () => {
             chatbot_bot_id: chatbotBotId || null,
             chatbot_webhook_url: chatbotWebhookUrl || null,
             chatbot_config: chatbotConfig,
-            knowledge_base: knowledgeBase || null,
+            knowledge_base: knowledgeBaseSource === 'gist' ? knowledgeBaseGistUrl : (knowledgeBase || null),
           })
           .eq('id', chatSupportConfig.id);
 
@@ -200,7 +212,7 @@ export const WebsiteEditor: React.FC = () => {
             chatbot_bot_id: chatbotBotId || null,
             chatbot_webhook_url: chatbotWebhookUrl || null,
             chatbot_config: chatbotConfig,
-            knowledge_base: knowledgeBase || null,
+            knowledge_base: knowledgeBaseSource === 'gist' ? knowledgeBaseGistUrl : (knowledgeBase || null),
           });
 
         if (chatError) throw chatError;

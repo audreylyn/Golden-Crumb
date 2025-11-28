@@ -39,13 +39,31 @@ export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
 
     if (error || !data) return null;
 
+    // Check if knowledge_base is a URL (GitHub Gist or other)
+    let knowledgeBase = data.knowledge_base || undefined;
+    if (knowledgeBase && (knowledgeBase.startsWith('http://') || knowledgeBase.startsWith('https://'))) {
+      // It's a URL, fetch it
+      try {
+        const response = await fetch(knowledgeBase);
+        if (response.ok) {
+          knowledgeBase = await response.text();
+        } else {
+          console.warn('Failed to fetch knowledge base from URL:', knowledgeBase);
+          knowledgeBase = undefined;
+        }
+      } catch (err) {
+        console.error('Error fetching knowledge base URL:', err);
+        knowledgeBase = undefined;
+      }
+    }
+
     return {
       provider: (data.chatbot_provider as ChatbotProvider) || 'simple',
       apiKey: data.chatbot_api_key || undefined,
       botId: data.chatbot_bot_id || undefined,
       webhookUrl: data.chatbot_webhook_url || undefined,
       config: (data.chatbot_config as Record<string, any>) || {},
-      knowledgeBase: data.knowledge_base || undefined,
+      knowledgeBase: knowledgeBase,
     };
   } catch (error) {
     console.error('Error fetching chatbot config:', error);
