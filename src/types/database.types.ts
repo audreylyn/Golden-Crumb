@@ -1,5 +1,5 @@
 // =====================================================
-// WebGen-AI Database Types
+// LikhaSiteWorks Database Types
 // TypeScript types matching the database schema
 // =====================================================
 

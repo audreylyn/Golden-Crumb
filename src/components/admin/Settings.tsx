@@ -61,7 +61,7 @@ export const Settings: React.FC = () => {
           <div className="space-y-3">
             <div>
               <p className="text-sm text-gray-600">Platform</p>
-              <p className="text-lg font-semibold text-gray-900">WebGen-AI v1.0</p>
+              <p className="text-lg font-semibold text-gray-900">LikhaSiteWorks v1.0</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Database</p>

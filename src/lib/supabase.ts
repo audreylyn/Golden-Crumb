@@ -1,6 +1,6 @@
 /**
  * Supabase Client Configuration
- * WebGen-AI - Database connection setup
+ * LikhaSiteWorks - Database connection setup
  */
 
 import { createClient } from '@supabase/supabase-js';

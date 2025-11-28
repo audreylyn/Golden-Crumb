@@ -10,7 +10,7 @@ import { Lock, Mail, LogIn, AlertCircle } from 'lucide-react';
 
 export const Login: React.FC = () => {
   useEffect(() => {
-    document.title = 'Login - WebGen-AI';
+    document.title = 'Login - LikhaSiteWorks';
   }, []);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -144,7 +144,7 @@ export const Login: React.FC = () => {
           {/* Footer */}
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-500">
-              Powered by WebGen-AI
+              Powered by LikhaSiteWorks
             </p>
           </div>
         </div>

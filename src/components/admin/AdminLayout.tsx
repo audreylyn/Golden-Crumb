@@ -22,7 +22,7 @@ interface AdminLayoutProps {
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   React.useEffect(() => {
-    document.title = 'Admin Dashboard - WebGen-AI';
+    document.title = 'Admin Dashboard - LikhaSiteWorks';
   }, []);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -46,7 +46,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       <aside className="w-64 bg-gray-900 text-white flex flex-col">
         {/* Logo */}
         <div className="p-6 border-b border-gray-800">
-          <h1 className="text-2xl font-bold">WebGen-AI</h1>
+          <h1 className="text-2xl font-bold">LikhaSiteWorks</h1>
           <p className="text-xs text-gray-400 mt-1">Admin Dashboard</p>
         </div>
 
