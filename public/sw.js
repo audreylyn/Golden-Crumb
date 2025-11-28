@@ -33,64 +33,96 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Monitor fetch performance
+  // Skip API endpoints and Supabase requests - let them pass through without interception
+  // This improves performance in Chrome by avoiding service worker overhead on API calls
+  const pathname = url.pathname.toLowerCase();
+  const isApiRequest = 
+    pathname.includes('/api/') ||
+    pathname.includes('/rest/') ||
+    pathname.includes('/realtime/') ||
+    pathname.includes('/auth/') ||
+    pathname.includes('/storage/') ||
+    url.hostname.includes('supabase') ||
+    url.hostname.includes('supabase.co') ||
+    url.searchParams.has('apikey') ||
+    event.request.headers.get('apikey');
+  
+  if (isApiRequest) {
+    // Don't intercept API requests - let them pass through normally
+    return;
+  }
+
+  // Only handle static assets (JS, CSS, images, fonts, etc.)
+  const isStaticAsset = 
+    pathname.endsWith('.js') ||
+    pathname.endsWith('.css') ||
+    pathname.endsWith('.png') ||
+    pathname.endsWith('.jpg') ||
+    pathname.endsWith('.jpeg') ||
+    pathname.endsWith('.gif') ||
+    pathname.endsWith('.svg') ||
+    pathname.endsWith('.webp') ||
+    pathname.endsWith('.woff') ||
+    pathname.endsWith('.woff2') ||
+    pathname.endsWith('.ttf') ||
+    pathname.endsWith('.eot') ||
+    pathname.startsWith('/assets/') ||
+    pathname.startsWith('/src/');
+  
+  // Skip non-static assets to improve performance
+  if (!isStaticAsset) {
+    return;
+  }
+
+  // Monitor fetch performance for static assets only
   const fetchStartTime = Date.now();
   
   event.respondWith(
     (async () => {
-      // Try network first
+      // Try cache first for static assets (faster in Chrome)
+      const cachedResponse = await caches.match(event.request);
+      if (cachedResponse) {
+        const cacheTime = Date.now() - fetchStartTime;
+        if (cacheTime > 100) {
+          console.log(`[SW] Cache hit for ${url.pathname} (${cacheTime}ms)`);
+        }
+        return cachedResponse;
+      }
+
+      // Cache miss - fetch from network
       try {
         const networkResponse = await fetch(event.request);
         const fetchTime = Date.now() - fetchStartTime;
         
         // Log slow requests
-        if (fetchTime > 5000) {
+        if (fetchTime > 3000) {
           console.warn(`[SW] Slow request detected: ${url.pathname} took ${fetchTime}ms`);
         }
         
-        // Clone the response for caching
-        const responseToCache = networkResponse.clone();
-        
-        // Cache successful responses (only cache 200 status)
+        // Only cache successful responses
         if (networkResponse.status === 200) {
+          // Cache asynchronously to avoid blocking the response
+          const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache).catch((err) => {
-              console.warn(`[SW] Failed to cache ${url.pathname}:`, err);
+              // Silently fail caching - don't log to avoid console spam
             });
           });
         }
         
         return networkResponse;
       } catch (networkError) {
-        // Network failed, try cache
-        console.log(`[SW] Network failed for ${url.pathname}, trying cache...`);
-        const cachedResponse = await caches.match(event.request);
-        
-        // IMPORTANT: cachedResponse can be null, so we must check before returning
-        if (cachedResponse) {
-          console.log(`[SW] Serving from cache: ${url.pathname}`);
-          return cachedResponse;
-        }
-        
-        // No cache available - the original fetch failed
-        // Return the network error as a Response to avoid undefined
-        console.warn(`[SW] No cache available for ${url.pathname}`);
-        // Re-throw to be caught by outer handler, which will return a proper error Response
-        throw networkError;
+        // Network failed and no cache - return error response
+        console.warn(`[SW] Network failed for ${url.pathname}`);
+        return new Response('', {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: {
+            'Content-Type': 'text/plain'
+          }
+        });
       }
-    })().catch((error) => {
-      // Final fallback: if everything fails, we must return a valid Response
-      // This prevents the "undefined" error that was occurring
-      console.error(`[SW] All fetch strategies failed for ${url.pathname}:`, error);
-      // Return a proper error response instead of undefined
-      return new Response('', {
-        status: 503,
-        statusText: 'Service Unavailable',
-        headers: {
-          'Content-Type': 'text/plain'
-        }
-      });
-    })
+    })()
   );
 });
 
