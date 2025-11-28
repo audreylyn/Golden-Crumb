@@ -25,9 +25,8 @@ export const WebsiteEditor: React.FC = () => {
   const [chatbotBotId, setChatbotBotId] = useState('');
   const [chatbotWebhookUrl, setChatbotWebhookUrl] = useState('');
   const [chatbotConfigJson, setChatbotConfigJson] = useState('{}');
-  const [knowledgeBase, setKnowledgeBase] = useState('');
-  const [knowledgeBaseSource, setKnowledgeBaseSource] = useState<'database' | 'gist'>('database');
-  const [knowledgeBaseGistUrl, setKnowledgeBaseGistUrl] = useState('');
+  const [knowledgeBaseSource, setKnowledgeBaseSource] = useState<'sheets'>('sheets');
+  const [knowledgeBaseSheetsUrl, setKnowledgeBaseSheetsUrl] = useState('');
   
   // Get domain from environment variable or use default
   const domain = import.meta.env.VITE_DOMAIN || 'likhasiteworks.studio';
@@ -87,16 +86,13 @@ export const WebsiteEditor: React.FC = () => {
         setChatbotBotId(chatData.chatbot_bot_id || '');
         setChatbotWebhookUrl(chatData.chatbot_webhook_url || '');
         setChatbotConfigJson(JSON.stringify(chatData.chatbot_config || {}, null, 2));
-        // Check if knowledge_base is a URL (GitHub Gist)
-        const kbValue = chatData.knowledge_base || '';
-        if (kbValue && (kbValue.startsWith('http://') || kbValue.startsWith('https://'))) {
-          setKnowledgeBaseSource('gist');
-          setKnowledgeBaseGistUrl(kbValue);
-          setKnowledgeBase(''); // Clear text area
+        // Knowledge base is now always from Google Sheets
+        const kbUrl = chatData.knowledge_base || '';
+        if (kbUrl && (kbUrl.startsWith('http://') || kbUrl.startsWith('https://'))) {
+          setKnowledgeBaseSheetsUrl(kbUrl);
         } else {
-          setKnowledgeBaseSource('database');
-          setKnowledgeBase(kbValue);
-          setKnowledgeBaseGistUrl(''); // Clear Gist URL
+          // If old database value exists, clear it (migration)
+          setKnowledgeBaseSheetsUrl('');
         }
       } else if (chatError && chatError.code === 'PGRST116') {
         // Chat support config doesn't exist, create default (disabled)
@@ -192,7 +188,7 @@ export const WebsiteEditor: React.FC = () => {
             chatbot_bot_id: chatbotBotId || null,
             chatbot_webhook_url: chatbotWebhookUrl || null,
             chatbot_config: chatbotConfig,
-            knowledge_base: knowledgeBaseSource === 'gist' ? knowledgeBaseGistUrl : (knowledgeBase || null),
+            knowledge_base: knowledgeBaseSheetsUrl || null, // Store Google Sheets URL
           })
           .eq('id', chatSupportConfig.id);
 
@@ -212,7 +208,7 @@ export const WebsiteEditor: React.FC = () => {
             chatbot_bot_id: chatbotBotId || null,
             chatbot_webhook_url: chatbotWebhookUrl || null,
             chatbot_config: chatbotConfig,
-            knowledge_base: knowledgeBaseSource === 'gist' ? knowledgeBaseGistUrl : (knowledgeBase || null),
+            knowledge_base: knowledgeBaseSheetsUrl || null, // Store Google Sheets URL
           });
 
         if (chatError) throw chatError;
@@ -469,24 +465,41 @@ export const WebsiteEditor: React.FC = () => {
                     </>
                   )}
 
-                  {/* Knowledge Base - Available for all providers */}
+                  {/* Knowledge Base - Google Sheets Only */}
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Knowledge Base
+                      Knowledge Base (Google Sheets)
                     </label>
-                    <textarea
-                      value={knowledgeBase}
-                      onChange={(e) => setKnowledgeBase(e.target.value)}
-                      rows={8}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      placeholder="Enter your business information, FAQs, product details, policies, etc.&#10;&#10;Example:&#10;Business Name: The Golden Crumb Bakery&#10;Location: 123 Baker Street, Culinary District&#10;Hours: Monday-Friday 7AM-7PM, Weekends 8AM-5PM&#10;Specialties: Fresh sourdough, croissants, artisan pastries&#10;Delivery: Available for orders over ₱500 within 5 miles&#10;Contact: Phone (555) 123-4567, Email info@bakery.com"
+                    <input
+                      type="url"
+                      value={knowledgeBaseSheetsUrl}
+                      onChange={(e) => setKnowledgeBaseSheetsUrl(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-mono"
+                      placeholder="https://script.google.com/macros/s/YOUR-SCRIPT-ID/exec"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Store your business information, FAQs, product details, and policies here. 
-                      {chatbotProvider === 'gemini' && ' This will be automatically included in the system prompt for Gemini.'}
-                      {chatbotProvider === 'botpress' && ' You can also manage knowledge base in Botpress dashboard.'}
-                      {chatbotProvider === 'simple' && ' Used for keyword matching to extract relevant information.'}
+                      <strong>💡 Pro Tip:</strong> Use Google Sheets to update business hours without redeploying! 
+                      The system will automatically append <code className="bg-gray-100 px-1 rounded">?website=subdomain</code> to fetch the correct tab.
+                      {chatbotProvider === 'gemini' && ' The content will be automatically fetched and included in the system prompt.'}
                     </p>
+                    <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-xs text-gray-700 mb-2">
+                        <strong>📋 Setup Instructions:</strong>
+                      </p>
+                      <ol className="text-xs text-gray-700 list-decimal list-inside space-y-1 ml-2">
+                        <li>Create a Google Spreadsheet at <a href="https://sheets.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">sheets.google.com</a></li>
+                        <li>Create tabs named after your websites (e.g., "rose", "starbucks", "default")</li>
+                        <li>Add business info in each tab (column A recommended)</li>
+                        <li>Go to <strong>Extensions → Apps Script</strong> and deploy as Web App</li>
+                        <li>Copy the Web App URL and paste it above</li>
+                        <li>See <code className="bg-white px-1 rounded">GOOGLE-SHEETS-KB-SETUP.md</code> for detailed instructions</li>
+                      </ol>
+                    </div>
+                    <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+                      <p className="text-xs text-green-700">
+                        ✅ <strong>Benefits:</strong> Easy editing, no database storage, update without redeploying, free, version history
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}

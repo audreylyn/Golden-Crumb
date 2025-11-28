@@ -154,16 +154,17 @@ export async function sendChatbotMessageFast(
     return cached.response;
   }
 
-  // Fetch knowledge base if URL is provided
+  // Fetch knowledge base from Google Sheets if URL is provided
   let knowledgeBase = '';
   if (config.knowledgeBaseUrl) {
-    // Convert GitHub Gist URL to raw URL if needed
-    let kbUrl = config.knowledgeBaseUrl;
-    if (kbUrl.includes('gist.github.com') && !kbUrl.includes('/raw/')) {
-      // Convert: https://gist.github.com/user/id to https://gist.githubusercontent.com/user/id/raw
-      kbUrl = kbUrl.replace('gist.github.com', 'gist.githubusercontent.com') + '/raw';
-    }
-    knowledgeBase = await fetchKnowledgeBase(kbUrl);
+    // Get current website subdomain
+    const websiteSubdomain = await detectWebsiteSubdomain();
+    const website = websiteSubdomain || 'default';
+    
+    // Append website parameter to Google Sheets Apps Script URL
+    const sheetsUrl = `${config.knowledgeBaseUrl}${config.knowledgeBaseUrl.includes('?') ? '&' : '?'}website=${website}`;
+    
+    knowledgeBase = await fetchKnowledgeBase(sheetsUrl);
   }
 
   let response: string;

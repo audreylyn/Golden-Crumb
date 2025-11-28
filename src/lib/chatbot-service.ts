@@ -39,21 +39,33 @@ export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
 
     if (error || !data) return null;
 
-    // Check if knowledge_base is a URL (GitHub Gist or other)
-    let knowledgeBase = data.knowledge_base || undefined;
-    if (knowledgeBase && (knowledgeBase.startsWith('http://') || knowledgeBase.startsWith('https://'))) {
-      // It's a URL, fetch it
+    // Knowledge base is now always from Google Sheets (Apps Script URL)
+    let knowledgeBase = undefined;
+    const kbUrl = data.knowledge_base;
+    if (kbUrl && (kbUrl.startsWith('http://') || kbUrl.startsWith('https://'))) {
+      // It's a Google Sheets Apps Script URL, fetch it with website parameter
       try {
-        const response = await fetch(knowledgeBase);
-        if (response.ok) {
-          knowledgeBase = await response.text();
-        } else {
-          console.warn('Failed to fetch knowledge base from URL:', knowledgeBase);
-          knowledgeBase = undefined;
+        const websiteId = await getWebsiteId();
+        // Get website subdomain from database to append to URL
+        if (websiteId) {
+          const { data: websiteData } = await supabase
+            .from('websites')
+            .select('subdomain')
+            .eq('id', websiteId)
+            .single();
+          
+          const website = websiteData?.subdomain || 'default';
+          const sheetsUrl = `${kbUrl}${kbUrl.includes('?') ? '&' : '?'}website=${website}`;
+          
+          const response = await fetch(sheetsUrl);
+          if (response.ok) {
+            knowledgeBase = await response.text();
+          } else {
+            console.warn('Failed to fetch knowledge base from Google Sheets:', sheetsUrl);
+          }
         }
       } catch (err) {
-        console.error('Error fetching knowledge base URL:', err);
-        knowledgeBase = undefined;
+        console.error('Error fetching knowledge base from Google Sheets:', err);
       }
     }
 
