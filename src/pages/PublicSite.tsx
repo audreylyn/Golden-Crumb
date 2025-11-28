@@ -27,7 +27,19 @@ import { useWebsite } from '../contexts/WebsiteContext';
 export const PublicSite: React.FC = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const { loading } = useWebsite();
+  const { loading, websiteData, currentWebsite } = useWebsite();
+  
+  // Show loading state while website is being detected/loaded
+  if (loading || (!websiteData && currentWebsite)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading website...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Handle hash navigation - scroll to section when hash is present
   useEffect(() => {

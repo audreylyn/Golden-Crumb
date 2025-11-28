@@ -3,7 +3,7 @@
  * Handles routing between public site, editor, and admin
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { WebsiteProvider } from './src/contexts/WebsiteContext';
@@ -31,16 +31,18 @@ const PublicSiteRouter: React.FC = () => {
 };
 
 // Root Route Component - Detects subdomain and shows appropriate page
+// This check is synchronous and happens immediately to prevent any flash
 const RootRoute: React.FC = () => {
-  const hostname = window.location.hostname;
-  const params = new URLSearchParams(window.location.search);
+  // Synchronous check - window.location is available immediately
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const hasWebsiteParam = params.has('site') || params.has('website');
   
   // Check if we're on a subdomain (production) or have website param (development)
   const isLocalhost = hostname === 'localhost' || hostname.startsWith('127.0.0.1');
   const hasSubdomain = !isLocalhost && hostname.split('.').length >= 3;
   
-  // If we have a subdomain or website param, show public site
+  // If we have a subdomain or website param, show public site immediately
   if (hasSubdomain || hasWebsiteParam) {
     return <PublicSite />;
   }
