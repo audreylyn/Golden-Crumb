@@ -30,6 +30,36 @@ const PublicSiteRouter: React.FC = () => {
   return <Navigate to="/" replace />;
 };
 
+// Helper function to check if hostname is a valid subdomain (not Vercel/deployment domains)
+const isValidSubdomain = (hostname: string): boolean => {
+  if (hostname === 'localhost' || hostname.startsWith('127.0.0.1')) {
+    return false;
+  }
+  
+  // Exclude Vercel and other deployment domains
+  if (hostname.includes('.vercel.app') || 
+      hostname.includes('.netlify.app') || 
+      hostname.includes('.github.io') ||
+      hostname.includes('.pages.dev')) {
+    return false;
+  }
+  
+  // Check if it's a subdomain of the main domain
+  const domain = import.meta.env.VITE_DOMAIN || 'likhasiteworks.studio';
+  const parts = hostname.split('.');
+  
+  // Must have at least 3 parts and match the domain
+  if (parts.length < 3) {
+    return false;
+  }
+  
+  // Check if it ends with the main domain
+  const domainParts = domain.split('.');
+  const hostnameDomain = parts.slice(-domainParts.length).join('.');
+  
+  return hostnameDomain === domain && parts[0] !== 'www' && parts[0] !== 'admin';
+};
+
 // Root Route Component - Detects subdomain and shows appropriate page
 // This check is synchronous and happens immediately to prevent any flash
 const RootRoute: React.FC = () => {
@@ -38,54 +68,54 @@ const RootRoute: React.FC = () => {
   const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const hasWebsiteParam = params.has('site') || params.has('website');
   
-  // Check if we're on a subdomain (production) or have website param (development)
+  // Check if we're on a valid subdomain (production) or have website param (development)
   const isLocalhost = hostname === 'localhost' || hostname.startsWith('127.0.0.1');
-  const hasSubdomain = !isLocalhost && hostname.split('.').length >= 3;
+  const hasSubdomain = !isLocalhost && isValidSubdomain(hostname);
   
-  // If we have a subdomain or website param, show public site immediately
+  // If we have a valid subdomain or website param, show public site immediately
   if (hasSubdomain || hasWebsiteParam) {
     return <PublicSite />;
   }
   
-  // Otherwise show login page
+  // Otherwise show login page (for main domain, deployment domains, or localhost)
   return <Login />;
 };
 
-// Login Route Component - Redirects to public site if on subdomain
+// Login Route Component - Redirects to public site if on valid subdomain
 const LoginRoute: React.FC = () => {
   // Synchronous check - window.location is available immediately
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   
-  // Check if we're on a subdomain (production)
+  // Check if we're on a valid subdomain (production)
   const isLocalhost = hostname === 'localhost' || hostname.startsWith('127.0.0.1');
-  const hasSubdomain = !isLocalhost && hostname.split('.').length >= 3;
+  const hasSubdomain = !isLocalhost && isValidSubdomain(hostname);
   
-  // If on subdomain, redirect to public site (clients shouldn't see login)
+  // If on valid subdomain, redirect to public site (clients shouldn't see login)
   if (hasSubdomain) {
     return <Navigate to="/" replace />;
   }
   
-  // Otherwise show login page (localhost or main domain)
+  // Otherwise show login page (localhost, main domain, or deployment domains)
   return <Login />;
 };
 
-// Editor Route Component - Allows public access on subdomains, requires auth on localhost
+// Editor Route Component - Allows public access on valid subdomains, requires auth on localhost
 const EditorRoute: React.FC = () => {
   // Synchronous check - window.location is available immediately
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const hasWebsiteParam = params.has('site') || params.has('website');
   
-  // Check if we're on a subdomain (production) or have website param (development)
+  // Check if we're on a valid subdomain (production) or have website param (development)
   const isLocalhost = hostname === 'localhost' || hostname.startsWith('127.0.0.1');
-  const hasSubdomain = !isLocalhost && hostname.split('.').length >= 3;
+  const hasSubdomain = !isLocalhost && isValidSubdomain(hostname);
   
-  // If on subdomain or has website param, allow public access (no auth required)
+  // If on valid subdomain or has website param, allow public access (no auth required)
   if (hasSubdomain || hasWebsiteParam) {
     return <EditorPage />;
   }
   
-  // Otherwise require authentication (localhost development)
+  // Otherwise require authentication (localhost development or deployment domains)
   return (
     <RequireAuth>
       <RequireWebsiteAccess>
