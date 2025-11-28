@@ -173,10 +173,10 @@ export const WebsiteEditor: React.FC = () => {
           .from('chat_support_config')
           .update({
             is_enabled: chatSupportEnabled,
-            chatbot_provider: chatbotProvider,
-            chatbot_api_key: chatbotApiKey || null,
-            chatbot_bot_id: chatbotBotId || null,
-            chatbot_webhook_url: chatbotWebhookUrl || null,
+            chatbot_provider: 'gemini', // Always use Gemini
+            chatbot_api_key: null, // Uses env var, not stored per-website
+            chatbot_bot_id: null, // Not needed for Gemini
+            chatbot_webhook_url: null, // Not needed for Gemini
             chatbot_config: chatbotConfig,
             knowledge_base: knowledgeBaseSheetsUrl || null, // Store Google Sheets URL
           })
@@ -193,10 +193,10 @@ export const WebsiteEditor: React.FC = () => {
             greeting_message: 'Hi! How can we help you today?',
             agent_name: 'Support',
             position: 'bottom-right',
-            chatbot_provider: chatbotProvider,
-            chatbot_api_key: chatbotApiKey || null,
-            chatbot_bot_id: chatbotBotId || null,
-            chatbot_webhook_url: chatbotWebhookUrl || null,
+            chatbot_provider: 'gemini', // Always use Gemini
+            chatbot_api_key: null, // Uses env var, not stored per-website
+            chatbot_bot_id: null, // Not needed for Gemini
+            chatbot_webhook_url: null, // Not needed for Gemini
             chatbot_config: chatbotConfig,
             knowledge_base: knowledgeBaseSheetsUrl || null, // Store Google Sheets URL
           });
@@ -406,7 +406,7 @@ export const WebsiteEditor: React.FC = () => {
                       placeholder='{"model": "gemini-1.5-flash", "temperature": 0.7, "maxTokens": 500}'
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Gemini-specific configuration. Example: <code className="bg-gray-100 px-1 rounded">{"model": "gemini-1.5-flash", "temperature": 0.7}</code>
+                      Gemini-specific configuration. Example: <code className="bg-gray-100 px-1 rounded">{"{\"model\": \"gemini-1.5-flash\", \"temperature\": 0.7}"}</code>
                     </p>
                   </div>
 
