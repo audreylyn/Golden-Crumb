@@ -9,6 +9,7 @@ import { ArrowLeft, Eye, Edit3, User, Sparkles } from 'lucide-react';
 import type { UserProfile } from '../../types/auth.types';
 import { ContentGeneratorModal } from './ContentGeneratorModal';
 import { useWebsite } from '../../contexts/WebsiteContext';
+import { getSubdomain } from '../../lib/website-detector';
 
 interface EditorLayoutProps {
   children: React.ReactNode;
@@ -27,6 +28,20 @@ export const EditorLayout: React.FC<EditorLayoutProps> = ({
   const { currentWebsite } = useWebsite();
   const [showContentGenerator, setShowContentGenerator] = useState(false);
 
+  const handleExitEditor = () => {
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isLocalhost = hostname === 'localhost' || hostname.startsWith('127.0.0.1');
+    const hasSubdomain = !isLocalhost && getSubdomain(hostname) !== null;
+    
+    // If on subdomain, go back to public site (root)
+    // Otherwise go to admin websites page
+    if (hasSubdomain) {
+      navigate('/');
+    } else {
+      navigate('/admin/websites');
+    }
+  };
+
   return (
     <div className="relative">
       {/* Top Editor Bar */}
@@ -34,7 +49,7 @@ export const EditorLayout: React.FC<EditorLayoutProps> = ({
         <div className="max-w-screen-2xl mx-auto px-4 py-3 flex items-center justify-between">
           {/* Left: Back Button */}
           <button
-            onClick={() => navigate('/admin/websites')}
+            onClick={handleExitEditor}
             className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition"
           >
             <ArrowLeft size={18} />

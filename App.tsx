@@ -51,6 +51,24 @@ const RootRoute: React.FC = () => {
   return <Login />;
 };
 
+// Login Route Component - Redirects to public site if on subdomain
+const LoginRoute: React.FC = () => {
+  // Synchronous check - window.location is available immediately
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  
+  // Check if we're on a subdomain (production)
+  const isLocalhost = hostname === 'localhost' || hostname.startsWith('127.0.0.1');
+  const hasSubdomain = !isLocalhost && hostname.split('.').length >= 3;
+  
+  // If on subdomain, redirect to public site (clients shouldn't see login)
+  if (hasSubdomain) {
+    return <Navigate to="/" replace />;
+  }
+  
+  // Otherwise show login page (localhost or main domain)
+  return <Login />;
+};
+
 // Editor Route Component - Allows public access on subdomains, requires auth on localhost
 const EditorRoute: React.FC = () => {
   // Synchronous check - window.location is available immediately
@@ -86,8 +104,8 @@ function App() {
             {/* Root Route - Shows PublicSite if subdomain detected, otherwise Login */}
             <Route path="/" element={<RootRoute />} />
 
-            {/* Login Route (also accessible) */}
-            <Route path="/login" element={<Login />} />
+            {/* Login Route - Redirects to public site if on subdomain */}
+            <Route path="/login" element={<LoginRoute />} />
 
             {/* Website Selector (Protected) - For localhost development */}
             <Route
