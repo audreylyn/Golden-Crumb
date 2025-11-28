@@ -51,6 +51,32 @@ const RootRoute: React.FC = () => {
   return <Login />;
 };
 
+// Editor Route Component - Allows public access on subdomains, requires auth on localhost
+const EditorRoute: React.FC = () => {
+  // Synchronous check - window.location is available immediately
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const hasWebsiteParam = params.has('site') || params.has('website');
+  
+  // Check if we're on a subdomain (production) or have website param (development)
+  const isLocalhost = hostname === 'localhost' || hostname.startsWith('127.0.0.1');
+  const hasSubdomain = !isLocalhost && hostname.split('.').length >= 3;
+  
+  // If on subdomain or has website param, allow public access (no auth required)
+  if (hasSubdomain || hasWebsiteParam) {
+    return <EditorPage />;
+  }
+  
+  // Otherwise require authentication (localhost development)
+  return (
+    <RequireAuth>
+      <RequireWebsiteAccess>
+        <EditorPage />
+      </RequireWebsiteAccess>
+    </RequireAuth>
+  );
+};
+
 function App() {
   return (
     <BrowserRouter>
@@ -76,16 +102,10 @@ function App() {
             {/* Public Site - Only when website is specified */}
             <Route path="/site" element={<PublicSiteRouter />} />
 
-            {/* Editor Route (Protected) */}
+            {/* Editor Route - Public on subdomains, protected on localhost */}
             <Route
               path="/edit"
-              element={
-                <RequireAuth>
-                  <RequireWebsiteAccess>
-                    <EditorPage />
-                  </RequireWebsiteAccess>
-                </RequireAuth>
-              }
+              element={<EditorRoute />}
             />
 
             {/* Admin Routes (Protected) */}
