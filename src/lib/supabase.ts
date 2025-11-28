@@ -18,6 +18,9 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
   },
 });
 
+// Import detectWebsiteId after supabase client is created to avoid circular dependency
+import { detectWebsiteId } from './website-detector';
+
 // Helper function to get the current website by subdomain with retry logic
 export const getCurrentWebsiteId = async (subdomain: string = 'golden-crumb', retries: number = 3): Promise<string | null> => {
   for (let i = 0; i < retries; i++) {
@@ -64,13 +67,27 @@ export const getCurrentWebsiteId = async (subdomain: string = 'golden-crumb', re
   return null;
 };
 
-// For development, we'll use a cached website ID
+// For development, we'll use a cached website ID (but refresh it on each call to detect current website)
 let cachedWebsiteId: string | null = null;
+let cacheTimestamp: number = 0;
+const CACHE_DURATION = 5000; // Cache for 5 seconds to avoid excessive calls
 
 export const getWebsiteId = async (): Promise<string | null> => {
-  if (cachedWebsiteId) return cachedWebsiteId;
+  // Always detect the current website from URL/subdomain instead of hardcoding
+  // Use cache only for a short duration to avoid excessive API calls
+  const now = Date.now();
+  if (cachedWebsiteId && (now - cacheTimestamp) < CACHE_DURATION) {
+    return cachedWebsiteId;
+  }
   
-  cachedWebsiteId = await getCurrentWebsiteId('golden-crumb');
-  return cachedWebsiteId;
+  // Use detectWebsiteId to properly detect current website from URL parameters or subdomain
+  const websiteId = await detectWebsiteId();
+  
+  if (websiteId) {
+    cachedWebsiteId = websiteId;
+    cacheTimestamp = now;
+  }
+  
+  return websiteId;
 };
 

@@ -13,7 +13,7 @@ import { PublicSite } from './PublicSite';
 
 const EditorContent: React.FC = () => {
   const { user } = useAuth();
-  const { websiteData } = useWebsite();
+  const { websiteData, loading, currentWebsite } = useWebsite();
   const { isEditing, setIsEditing, hasChanges, setHasChanges } = useEditor();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -34,10 +34,47 @@ const EditorContent: React.FC = () => {
     setIsEditing(!isEditing);
   };
 
-  if (!websiteData) {
+  // Show loading state while detecting website
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading website...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Detecting website...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if website not found
+  if (!loading && !currentWebsite) {
+    const params = new URLSearchParams(window.location.search);
+    const siteParam = params.get('site') || params.get('website');
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md p-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Website Not Found</h2>
+          <p className="text-gray-600 mb-4">
+            {siteParam 
+              ? `The website "${siteParam}" was not found in the database.`
+              : 'No website was detected. Please access the site with ?site=subdomain parameter.'}
+          </p>
+          <p className="text-sm text-gray-500">
+            Make sure the website exists in your database and the subdomain is correct.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading if website detected but data not loaded yet
+  if (!websiteData && currentWebsite) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading website data...</p>
+        </div>
       </div>
     );
   }

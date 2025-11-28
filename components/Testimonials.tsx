@@ -160,7 +160,7 @@ export const Testimonials: React.FC = () => {
 
   if (loading) {
     return (
-      <section className="py-24 bg-bakery-dark text-bakery-beige relative overflow-hidden flex items-center justify-center min-h-[400px]">
+      <section id="testimonials" className="py-24 bg-bakery-dark text-bakery-beige relative overflow-hidden flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p className="font-sans text-white">Loading...</p>
@@ -172,7 +172,7 @@ export const Testimonials: React.FC = () => {
   if (!config || testimonials.length === 0) return null;
 
   return (
-    <section className="py-24 bg-bakery-dark text-bakery-beige relative overflow-hidden">
+    <section id="testimonials" className="py-24 bg-bakery-dark text-bakery-beige relative overflow-hidden">
       {/* Decorative subtle overlay */}
       <div className="absolute inset-0 bg-black/10 pointer-events-none" />
       

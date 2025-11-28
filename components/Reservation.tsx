@@ -166,7 +166,7 @@ export const Reservation: React.FC = () => {
 
   if (loading) {
     return (
-      <section id="reservations" className="py-24 bg-bakery-dark">
+      <section id="reservation" className="py-24 bg-bakery-dark">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center text-white">Loading...</div>
         </div>
@@ -179,7 +179,7 @@ export const Reservation: React.FC = () => {
   }
 
   return (
-    <section id="reservations" className="py-24 bg-bakery-dark relative overflow-hidden">
+    <section id="reservation" className="py-24 bg-bakery-dark relative overflow-hidden">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10" 
            style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }}>

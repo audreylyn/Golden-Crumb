@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Trash2, Plus, Minus, Send, ShoppingCart } from 'lucide-react';
 import { CartItem } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase, getWebsiteId } from '../src/lib/supabase';
 
 interface CartProps {
   isOpen: boolean;
@@ -25,25 +26,68 @@ export const Cart: React.FC<CartProps> = ({
     location: '',
     message: ''
   });
+  const [facebookMessengerId, setFacebookMessengerId] = useState<string | null>(null);
 
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
+  // Load Facebook Messenger ID when cart opens
+  useEffect(() => {
+    if (isOpen) {
+      loadFacebookMessengerId();
+    }
+  }, [isOpen]);
+
+  const loadFacebookMessengerId = async () => {
+    try {
+      const websiteId = await getWebsiteId();
+      if (!websiteId) return;
+
+      const { data, error } = await supabase
+        .from('contact_info')
+        .select('facebook_messenger_id, social_links')
+        .eq('website_id', websiteId)
+        .single();
+
+      if (!error && data) {
+        // Check both facebook_messenger_id field and social_links.facebook_messenger
+        const messengerId = data.facebook_messenger_id || 
+                           (data.social_links as any)?.facebook_messenger || 
+                           null;
+        setFacebookMessengerId(messengerId);
+      }
+    } catch (error) {
+      console.error('Error loading Facebook Messenger ID:', error);
+    }
+  };
+
   const handleCheckout = () => {
-    // Construct message for messenger
-    let message = `Hello! I would like to place an order:%0A%0A`;
-    message += `*Name:* ${customerDetails.name}%0A`;
-    message += `*Location:* ${customerDetails.location}%0A`;
-    if (customerDetails.message) message += `*Note:* ${customerDetails.message}%0A`;
-    message += `%0A*Order Details:*%0A`;
+    // Construct message for messenger (plain text, will be URL encoded)
+    let message = `Hello! I would like to place an order:\n\n`;
+    message += `Name: ${customerDetails.name}\n`;
+    message += `Location: ${customerDetails.location}\n`;
+    if (customerDetails.message) message += `Note: ${customerDetails.message}\n`;
+    message += `\nOrder Details:\n`;
     
     items.forEach(item => {
-      message += `- ${item.name} (x${item.quantity}) - ₱${item.price * item.quantity}%0A`;
+      message += `- ${item.name} (x${item.quantity}) - ₱${item.price * item.quantity}\n`;
     });
     
-    message += `%0A*Total: ₱${total}*`;
+    message += `\nTotal: ₱${total}`;
 
-    // Alert for demo purposes, in production this would open m.me link
-    alert(`Redirecting to Messenger with order:\n\n${decodeURIComponent(message).replace(/%0A/g, '\n')}`);
+    // Navigate to Facebook Messenger if ID is configured
+    if (facebookMessengerId) {
+      // Facebook Messenger URL format: https://m.me/{page-id}?text={encoded-message}
+      const encodedMessage = encodeURIComponent(message);
+      const messengerUrl = `https://m.me/${facebookMessengerId}?text=${encodedMessage}`;
+      window.open(messengerUrl, '_blank');
+      
+      // Clear cart after redirecting
+      onClear();
+      onClose();
+    } else {
+      // Fallback: show alert if no Messenger ID is configured
+      alert(`Facebook Messenger ID not configured. Please contact the website administrator.\n\nOrder details:\n\n${message}`);
+    }
   };
 
   return (

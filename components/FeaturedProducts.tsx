@@ -73,7 +73,7 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({ addToCart })
 
   if (loading) {
     return (
-      <section className="py-24 bg-white relative flex items-center justify-center min-h-[400px]">
+      <section id="featuredProducts" className="py-24 bg-white relative flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bakery-primary mx-auto mb-4"></div>
           <p className="font-sans text-gray-600">Loading...</p>
@@ -106,7 +106,7 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({ addToCart })
   };
 
   return (
-    <section className="py-24 bg-white relative">
+    <section id="featuredProducts" className="py-24 bg-white relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">

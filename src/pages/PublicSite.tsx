@@ -3,7 +3,7 @@
  * The main public-facing website (moved from App.tsx)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from '../../components/Navbar';
 import { Hero } from '../../components/Hero';
 import { Menu } from '../../components/Menu';
@@ -22,10 +22,66 @@ import { FAQ } from '../../components/FAQ';
 import { ChatSupport } from '../../components/ChatSupport';
 import { CartItem, MenuItem } from '../types';
 import { ConditionalSection } from '../components/ConditionalSection';
+import { useWebsite } from '../contexts/WebsiteContext';
 
 export const PublicSite: React.FC = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const { loading } = useWebsite();
+
+  // Handle hash navigation - scroll to section when hash is present
+  useEffect(() => {
+    const handleHashNavigation = () => {
+      const hash = window.location.hash;
+      if (hash) {
+        // Remove the # symbol
+        const sectionId = hash.substring(1);
+        
+        // Wait a bit for content to load, then scroll
+        const scrollToSection = () => {
+          const element = document.getElementById(sectionId);
+          if (element) {
+            // Account for fixed navbar/header
+            const headerOffset = 80;
+            const elementPosition = element.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+            window.scrollTo({
+              top: offsetPosition,
+              behavior: 'smooth'
+            });
+          }
+        };
+
+        // Try immediately, then retry after a short delay if content is still loading
+        scrollToSection();
+        
+        if (loading) {
+          // If still loading, wait a bit more
+          setTimeout(scrollToSection, 500);
+        }
+      }
+    };
+
+    // Handle initial hash on mount
+    handleHashNavigation();
+
+    // Handle hash changes
+    window.addEventListener('hashchange', handleHashNavigation);
+
+    // Also try scrolling after content loads
+    if (!loading) {
+      const timer = setTimeout(handleHashNavigation, 100);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('hashchange', handleHashNavigation);
+      };
+    }
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashNavigation);
+    };
+  }, [loading]);
 
   const addToCart = (item: MenuItem) => {
     setCartItems(prev => {

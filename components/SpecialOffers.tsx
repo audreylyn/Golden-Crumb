@@ -95,7 +95,7 @@ export const SpecialOffers: React.FC = () => {
 
   if (loading) {
     return (
-      <section className="py-24 bg-bakery-primary/5 relative overflow-hidden flex items-center justify-center min-h-[400px]">
+      <section id="specialOffers" className="py-24 bg-bakery-primary/5 relative overflow-hidden flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bakery-primary mx-auto mb-4"></div>
           <p className="font-sans text-gray-600">Loading...</p>
@@ -107,7 +107,7 @@ export const SpecialOffers: React.FC = () => {
   // Show section even if no offers, so user can add them
   if (!config) {
     return (
-      <section className="py-24 bg-bakery-primary/5 relative overflow-hidden">
+      <section id="specialOffers" className="py-24 bg-bakery-primary/5 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <p className="font-sans text-gray-600">Special Offers section not configured. Please configure it in the admin panel.</p>
@@ -124,7 +124,7 @@ export const SpecialOffers: React.FC = () => {
   if (offers.length === 0 && !isEditing) return null;
 
   return (
-    <section className="py-24 bg-bakery-primary/5 relative overflow-hidden">
+    <section id="specialOffers" className="py-24 bg-bakery-primary/5 relative overflow-hidden">
         {/* Decorative elements */}
         <div className="absolute top-0 left-0 w-64 h-64 bg-bakery-accent/10 rounded-br-full -z-10 opacity-50" />
         <div className="absolute bottom-0 right-0 w-48 h-48 bg-bakery-primary/10 rounded-tl-full -z-10 opacity-50" />

@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, Save, Palette } from 'lucide-react';
+import { ArrowLeft, Save, Palette, MessageCircle } from 'lucide-react';
 import type { ThemePreset } from '../../types/auth.types';
 
 export const WebsiteEditor: React.FC = () => {
@@ -16,6 +16,8 @@ export const WebsiteEditor: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [website, setWebsite] = useState<any>(null);
   const [themePresets, setThemePresets] = useState<ThemePreset[]>([]);
+  const [contactInfo, setContactInfo] = useState<any>(null);
+  const [facebookMessengerId, setFacebookMessengerId] = useState('');
 
   useEffect(() => {
     loadData();
@@ -42,6 +44,20 @@ export const WebsiteEditor: React.FC = () => {
 
       if (themesError) throw themesError;
       setThemePresets(themesData || []);
+
+      // Load contact info for Facebook Messenger ID
+      const { data: contactData, error: contactError } = await supabase
+        .from('contact_info')
+        .select('*')
+        .eq('website_id', websiteId)
+        .single();
+
+      if (!contactError && contactData) {
+        setContactInfo(contactData);
+        // Get Facebook Messenger ID from contact_info
+        // It can be stored in facebook_messenger_id field or in social_links.facebook
+        setFacebookMessengerId(contactData.facebook_messenger_id || contactData.social_links?.facebook_messenger || '');
+      }
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -52,7 +68,8 @@ export const WebsiteEditor: React.FC = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
+      // Update website
+      const { error: websiteError } = await supabase
         .from('websites')
         .update({
           site_title: website.site_title,
@@ -61,7 +78,43 @@ export const WebsiteEditor: React.FC = () => {
         })
         .eq('id', websiteId);
 
-      if (error) throw error;
+      if (websiteError) throw websiteError;
+
+      // Update or create contact_info with Facebook Messenger ID
+      if (contactInfo) {
+        // Update existing contact_info
+        const socialLinks = contactInfo.social_links || {};
+        const { error: contactError } = await supabase
+          .from('contact_info')
+          .update({
+            facebook_messenger_id: facebookMessengerId || null,
+            social_links: {
+              ...socialLinks,
+              facebook_messenger: facebookMessengerId || '',
+            },
+          })
+          .eq('id', contactInfo.id);
+
+        if (contactError) throw contactError;
+      } else if (websiteId) {
+        // Create new contact_info if it doesn't exist
+        const { error: contactError } = await supabase
+          .from('contact_info')
+          .insert({
+            website_id: websiteId,
+            heading: 'Get in Touch',
+            facebook_messenger_id: facebookMessengerId || null,
+            social_links: {
+              facebook: '',
+              instagram: '',
+              twitter: '',
+              facebook_messenger: facebookMessengerId || '',
+            },
+          });
+
+        if (contactError) throw contactError;
+      }
+
       alert('Website updated successfully!');
     } catch (error: any) {
       alert(`Error: ${error.message}`);
@@ -178,6 +231,35 @@ export const WebsiteEditor: React.FC = () => {
                 </div>
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Integrations */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <MessageCircle size={24} className="text-gray-700" />
+            <h2 className="text-xl font-bold text-gray-900">Integrations</h2>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Facebook Messenger ID
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Enter your Facebook Page ID or Username. When customers checkout, they will be redirected to your Messenger.
+              </p>
+              <input
+                type="text"
+                value={facebookMessengerId}
+                onChange={(e) => setFacebookMessengerId(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="your-page-id or your-page-username"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Example: <code className="bg-gray-100 px-1 rounded">yourbakery</code> or <code className="bg-gray-100 px-1 rounded">123456789012345</code>
+              </p>
+            </div>
           </div>
         </div>
 

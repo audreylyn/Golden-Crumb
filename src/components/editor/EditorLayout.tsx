@@ -34,7 +34,7 @@ export const EditorLayout: React.FC<EditorLayoutProps> = ({
         <div className="max-w-screen-2xl mx-auto px-4 py-3 flex items-center justify-between">
           {/* Left: Back Button */}
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/admin/websites')}
             className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition"
           >
             <ArrowLeft size={18} />

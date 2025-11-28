@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Globe, Plus, ExternalLink, Edit, Trash2, Eye, EyeOff, Palette, Sparkles } from 'lucide-react';
+import { Globe, Plus, ExternalLink, Edit, Trash2, Eye, EyeOff, Palette, Sparkles, Loader } from 'lucide-react';
 import { buildWebsiteUrl } from '../../lib/website-detector';
 import { initializeWebsiteContent } from '../../lib/initialize-website-content';
 
@@ -22,6 +22,7 @@ interface Website {
 export const WebsiteList: React.FC = () => {
   const [websites, setWebsites] = useState<Website[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [searchParams] = useSearchParams();
   const showNewForm = searchParams.get('new') === 'true';
 
@@ -31,6 +32,26 @@ export const WebsiteList: React.FC = () => {
     theme_preset_id: '',
   });
   const [themePresets, setThemePresets] = useState<any[]>([]);
+  
+  // Section definitions with default enabled sections
+  const SECTION_DEFINITIONS = [
+    { name: 'hero', label: 'Hero Section', description: 'Main banner/carousel at the top' },
+    { name: 'about', label: 'About Section', description: 'About your business' },
+    { name: 'whyChooseUs', label: 'Why Choose Us', description: 'Key features/benefits' },
+    { name: 'team', label: 'Team Section', description: 'Team members' },
+    { name: 'featuredProducts', label: 'Featured Products', description: 'Highlighted products' },
+    { name: 'menu', label: 'Menu Section', description: 'Product menu' },
+    { name: 'reservation', label: 'Reservation', description: 'Booking form' },
+    { name: 'testimonials', label: 'Testimonials', description: 'Customer reviews' },
+    { name: 'faq', label: 'FAQ Section', description: 'Frequently asked questions' },
+    { name: 'contact', label: 'Contact Section', description: 'Contact information' },
+    { name: 'instagramFeed', label: 'Instagram Feed', description: 'Social media feed' },
+  ];
+  
+  // Default enabled sections (all except specialOffers)
+  const [enabledSections, setEnabledSections] = useState<Set<string>>(
+    new Set(SECTION_DEFINITIONS.map(s => s.name))
+  );
 
   useEffect(() => {
     loadWebsites();
@@ -76,6 +97,11 @@ export const WebsiteList: React.FC = () => {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Prevent multiple clicks
+    if (creating) return;
+    
+    setCreating(true);
+    
     try {
       // Use selected theme or default
       let themeId = newWebsite.theme_preset_id;
@@ -98,14 +124,17 @@ export const WebsiteList: React.FC = () => {
 
       // Initialize default content for the new website
       if (data) {
-        await initializeWebsiteContent(data.id);
+        await initializeWebsiteContent(data.id, Array.from(enabledSections));
       }
 
       alert('Website created successfully!');
       setNewWebsite({ site_title: '', subdomain: '', theme_preset_id: themePresets[0]?.id || '' });
+      setEnabledSections(new Set(SECTION_DEFINITIONS.map(s => s.name))); // Reset to default
       loadWebsites();
     } catch (error: any) {
       alert(`Error: ${error.message}`);
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -238,13 +267,82 @@ export const WebsiteList: React.FC = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Section Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                  <Sparkles size={16} />
+                  Enable Sections
+                </label>
+                <p className="text-xs text-gray-500 mb-3">
+                  Select which sections to enable on your new website. All content will be copied, but only selected sections will be visible.
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  {SECTION_DEFINITIONS.map((section) => {
+                    const isEnabled = enabledSections.has(section.name);
+                    return (
+                      <label
+                        key={section.name}
+                        className={`flex items-start gap-3 p-3 bg-white rounded-lg border-2 cursor-pointer transition hover:border-blue-300 ${
+                          isEnabled ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isEnabled}
+                          onChange={(e) => {
+                            const newSet = new Set(enabledSections);
+                            if (e.target.checked) {
+                              newSet.add(section.name);
+                            } else {
+                              newSet.delete(section.name);
+                            }
+                            setEnabledSections(newSet);
+                          }}
+                          className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{section.label}</p>
+                          <p className="text-xs text-gray-500">{section.description}</p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                  <span>
+                    {enabledSections.size} of {SECTION_DEFINITIONS.length} sections enabled
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (enabledSections.size === SECTION_DEFINITIONS.length) {
+                        setEnabledSections(new Set());
+                      } else {
+                        setEnabledSections(new Set(SECTION_DEFINITIONS.map(s => s.name)));
+                      }
+                    }}
+                    className="text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    {enabledSections.size === SECTION_DEFINITIONS.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
+              </div>
             </div>
             <div className="flex gap-3">
               <button
                 type="submit"
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                disabled={creating}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                Create Website
+                {creating ? (
+                  <>
+                    <Loader size={18} className="animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Website'
+                )}
               </button>
               <Link
                 to="/admin/websites"
@@ -319,6 +417,13 @@ export const WebsiteList: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <Link
+                      to={`/admin/websites/${website.id}`}
+                      className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg transition"
+                      title="Website Settings"
+                    >
+                      <Palette size={18} />
+                    </Link>
                     <Link
                       to={`/admin/websites/${website.id}/content`}
                       className="p-2 text-purple-600 hover:bg-purple-100 rounded-lg transition"

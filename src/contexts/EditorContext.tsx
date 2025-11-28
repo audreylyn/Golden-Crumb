@@ -5,7 +5,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { getWebsiteId } from '../lib/supabase';
+import { detectWebsiteId } from '../lib/website-detector';
 
 interface EditorContextType {
   isEditing: boolean;
@@ -35,9 +35,10 @@ export const EditorProvider: React.FC<{ children: React.ReactNode; isEditing: bo
     recordId?: string
   ): Promise<void> => {
     try {
-      const websiteId = await getWebsiteId();
+      // Use detectWebsiteId to properly detect current website from URL/subdomain
+      const websiteId = await detectWebsiteId();
       if (!websiteId) {
-        throw new Error('No website ID found');
+        throw new Error('No website ID found. Make sure you are accessing the site with ?site=subdomain parameter or correct subdomain.');
       }
 
       // Create a unique key for this field
@@ -64,7 +65,8 @@ export const EditorProvider: React.FC<{ children: React.ReactNode; isEditing: bo
         let query = supabase.from(item.table).update(updateData);
         
         if (item.recordId) {
-          query = query.eq('id', item.recordId);
+          // Always verify website_id to prevent cross-website updates
+          query = query.eq('id', item.recordId).eq('website_id', websiteId);
         } else {
           query = query.eq('website_id', websiteId);
         }
@@ -91,9 +93,10 @@ export const EditorProvider: React.FC<{ children: React.ReactNode; isEditing: bo
             const queue = Array.from(saveQueue.current.values());
             saveQueue.current.clear();
 
-            const websiteId = await getWebsiteId();
+            // Use detectWebsiteId to properly detect current website from URL/subdomain
+            const websiteId = await detectWebsiteId();
             if (!websiteId) {
-              reject(new Error('No website ID found'));
+              reject(new Error('No website ID found. Make sure you are accessing the site with ?site=subdomain parameter or correct subdomain.'));
               return;
             }
 
@@ -106,7 +109,8 @@ export const EditorProvider: React.FC<{ children: React.ReactNode; isEditing: bo
                 let query = supabase.from(item.table).update(updateData);
                 
                 if (item.recordId) {
-                  query = query.eq('id', item.recordId);
+                  // Always verify website_id to prevent cross-website updates
+                  query = query.eq('id', item.recordId).eq('website_id', websiteId);
                 } else {
                   query = query.eq('website_id', websiteId);
                 }
