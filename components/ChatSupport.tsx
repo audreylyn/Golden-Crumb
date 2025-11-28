@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Minimize2, Croissant, User } from 'lucide-react';
+import { MessageCircle, X, Send, Minimize2, Bot, User } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase, getWebsiteId } from '../src/lib/supabase';
 // Use regular version (with database storage) - supports per-website configuration
@@ -225,7 +225,7 @@ export const ChatSupport: React.FC = () => {
                         {/* Bot Avatar */}
                         {msg.sender === 'bot' && (
                           <div className="w-8 h-8 rounded-full bg-bakery-primary/10 flex items-center justify-center flex-shrink-0 border border-bakery-primary/20">
-                             <Croissant size={16} className="text-bakery-primary" />
+                             <Bot size={16} className="text-bakery-primary" />
                           </div>
                         )}
 
@@ -256,7 +256,7 @@ export const ChatSupport: React.FC = () => {
                 {isTyping && (
                     <div className="flex items-end gap-3 justify-start">
                          <div className="w-8 h-8 rounded-full bg-bakery-primary/10 flex items-center justify-center flex-shrink-0 border border-bakery-primary/20">
-                             <Croissant size={16} className="text-bakery-primary" />
+                             <Bot size={16} className="text-bakery-primary" />
                           </div>
                          <div className="bg-white text-gray-500 border border-bakery-sand px-4 py-3 rounded-2xl rounded-bl-none text-xs flex gap-1 items-center shadow-sm">
                             <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
@@ -288,7 +288,7 @@ export const ChatSupport: React.FC = () => {
                 </div>
                 <div className="text-center mt-3">
                      <span className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
-                        Powered by The Golden Crumb Team
+                        Powered by LikhaSiteWorks
                      </span>
                 </div>
             </form>

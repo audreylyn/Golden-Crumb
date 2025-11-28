@@ -62,7 +62,8 @@ export const Footer: React.FC = () => {
         if (footerData.copyright_text) {
           setCopyrightText(footerData.copyright_text);
         } else {
-          setCopyrightText(`© ${new Date().getFullYear()} ${navbarData?.brand_name || ''}. All rights reserved.`);
+          const websiteName = navbarData?.brand_name || 'Website';
+          setCopyrightText(`© ${new Date().getFullYear()} ${websiteName}. All rights reserved.`);
         }
         
         // Load social links from contact_info
@@ -84,7 +85,8 @@ export const Footer: React.FC = () => {
         // Set defaults only if no data exists
         if (!footerData) {
           setAboutText('Bringing warmth to your day, one pastry at a time. Baked fresh daily with love and the finest ingredients.');
-          setCopyrightText(`© ${new Date().getFullYear()} ${navbarData?.brand_name || ''}. All rights reserved.`);
+          const websiteName = navbarData?.brand_name || 'Website';
+          setCopyrightText(`© ${new Date().getFullYear()} ${websiteName}. All rights reserved.`);
         }
       }
     } catch (error) {
@@ -320,16 +322,40 @@ export const Footer: React.FC = () => {
         <div className="border-t border-white/10 pt-8">
           <div className="text-center text-sm font-sans text-bakery-sand">
             {isEditing ? (
-              <EditableText
-                value={copyrightText}
-                onSave={async (newValue) => {
-                  setCopyrightText(newValue);
-                }}
-                tag="p"
-                className="text-center"
-              />
+              <div className="flex flex-col items-center gap-2">
+                <EditableText
+                  value={copyrightText}
+                  onSave={async (newValue) => {
+                    setCopyrightText(newValue);
+                  }}
+                  tag="p"
+                  className="text-center"
+                />
+                <p className="text-xs text-bakery-sand/70">
+                  Website by{' '}
+                  <a 
+                    href="https://www.likhasiteworks.studio/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-bakery-primary hover:text-white transition-colors underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    LikhaSiteWorks
+                  </a>
+                </p>
+              </div>
             ) : (
-              <p>{copyrightText}</p>
+              <p>
+                {copyrightText} | Website by{' '}
+                <a 
+                  href="https://www.likhasiteworks.studio/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-bakery-primary hover:text-white transition-colors underline"
+                >
+                  LikhaSiteWorks
+                </a>
+              </p>
             )}
           </div>
         </div>
