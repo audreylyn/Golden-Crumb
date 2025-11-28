@@ -6,7 +6,7 @@
 
 import { supabase, getWebsiteId } from './supabase';
 
-export type ChatbotProvider = 'simple' | 'botpress' | 'gemini';
+export type ChatbotProvider = 'gemini';
 
 export interface ChatbotConfig {
   provider: ChatbotProvider;
@@ -69,11 +69,14 @@ export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
       }
     }
 
+    // Use environment variable for Gemini API key (same as AI content generation)
+    const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || data.chatbot_api_key || undefined;
+
     return {
-      provider: (data.chatbot_provider as ChatbotProvider) || 'simple',
-      apiKey: data.chatbot_api_key || undefined,
-      botId: data.chatbot_bot_id || undefined,
-      webhookUrl: data.chatbot_webhook_url || undefined,
+      provider: 'gemini' as ChatbotProvider,
+      apiKey: geminiApiKey,
+      botId: undefined,
+      webhookUrl: undefined,
       config: (data.chatbot_config as Record<string, any>) || {},
       knowledgeBase: knowledgeBase,
     };
@@ -96,113 +99,11 @@ export async function sendChatbotMessage(
     return "I'm sorry, I'm having trouble connecting. Please try again later.";
   }
 
-  switch (config.provider) {
-    case 'simple':
-      return handleSimpleBot(message, config.knowledgeBase);
-    
-    case 'botpress':
-      return handleBotpress(message, config, conversationId);
-    
-    case 'gemini':
-      return handleGemini(message, config, conversationId);
-    
-    default:
-      return handleSimpleBot(message, config.knowledgeBase);
-  }
+  // Only Gemini is supported now
+  return handleGemini(message, config, conversationId);
 }
 
-/**
- * Simple rule-based bot (fallback/default)
- */
-function handleSimpleBot(message: string, knowledgeBase?: string): string {
-  const lowerInput = message.toLowerCase();
-
-  // If knowledge base exists, try to extract relevant info
-  if (knowledgeBase) {
-    // Simple keyword matching against knowledge base
-    const kbLower = knowledgeBase.toLowerCase();
-    
-    // Check if knowledge base contains relevant information
-    if (lowerInput.includes('hour') || lowerInput.includes('open') || lowerInput.includes('time')) {
-      const hourMatch = kbLower.match(/hour[s]?[:\s]+([^\.\n]+)/i) || kbLower.match(/open[s]?[:\s]+([^\.\n]+)/i);
-      if (hourMatch) {
-        return hourMatch[1].trim() || "Please check our business hours in the knowledge base.";
-      }
-    }
-    
-    if (lowerInput.includes('location') || lowerInput.includes('address') || lowerInput.includes('where')) {
-      const locationMatch = kbLower.match(/location[:\s]+([^\.\n]+)/i) || kbLower.match(/address[:\s]+([^\.\n]+)/i);
-      if (locationMatch) {
-        return locationMatch[1].trim() || "Please check our location in the knowledge base.";
-      }
-    }
-  }
-
-  // Fallback to default responses
-  if (lowerInput.includes('menu') || lowerInput.includes('food') || lowerInput.includes('bread') || lowerInput.includes('cake')) {
-    return "You can view our full daily selection in the Menu section above! We have fresh sourdough, croissants, cakes, and artisan pastries.";
-  } else if (lowerInput.includes('hour') || lowerInput.includes('open') || lowerInput.includes('time')) {
-    return "We are open Monday-Friday from 7:00 AM to 7:00 PM, and weekends from 8:00 AM to 5:00 PM.";
-  } else if (lowerInput.includes('location') || lowerInput.includes('address') || lowerInput.includes('where')) {
-    return "We are located at 123 Baker Street, Culinary District, FL 33101. We'd love to see you!";
-  } else if (lowerInput.includes('delivery') || lowerInput.includes('order') || lowerInput.includes('shipping')) {
-    return "We offer local delivery within a 5-mile radius for orders over ₱500. You can also find us on GrabFood and FoodPanda for instant delivery.";
-  } else if (lowerInput.includes('gluten') || lowerInput.includes('vegan') || lowerInput.includes('allergy')) {
-    return "Yes! We bake fresh gluten-free muffins and bread daily. We also have a selection of vegan pastries like our fruit tarts.";
-  }
-
-  return "Thanks for your message! One of our team members will get back to you shortly.";
-}
-
-/**
- * Botpress integration
- * Documentation: https://botpress.com/docs/build/channels/webchat
- */
-async function handleBotpress(
-  message: string,
-  config: ChatbotConfig,
-  conversationId?: string
-): Promise<string> {
-  if (!config.botId || !config.apiKey) {
-    console.error('Botpress: Missing botId or apiKey');
-    return handleSimpleBot(message, config.knowledgeBase);
-  }
-
-  try {
-    // Botpress API endpoint
-    const apiUrl = `https://api.botpress.cloud/v1/chat/${config.botId}/messages`;
-    
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        userId: conversationId || `user-${Date.now()}`,
-        type: 'text',
-        text: message,
-        conversationId: conversationId,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Botpress API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    // Botpress response format may vary, adjust based on their API
-    if (data.responses && data.responses.length > 0) {
-      return data.responses[0].text || data.responses[0].message || 'I received your message.';
-    }
-    
-    return data.text || 'I received your message.';
-  } catch (error) {
-    console.error('Botpress error:', error);
-    return handleSimpleBot(message, config.knowledgeBase);
-  }
-}
+// Removed: Simple bot and Botpress - only Gemini is supported now
 
 /**
  * Google Gemini integration
@@ -216,7 +117,7 @@ async function handleGemini(
 ): Promise<string> {
   if (!config.apiKey) {
     console.error('Gemini: Missing apiKey');
-    return handleSimpleBot(message, config.knowledgeBase);
+    return "I'm sorry, I'm having trouble connecting. Please make sure the Gemini API key is configured.";
   }
 
   try {
@@ -312,7 +213,7 @@ async function handleGemini(
     return 'I received your message.';
   } catch (error) {
     console.error('Gemini error:', error);
-    return handleSimpleBot(message, config.knowledgeBase);
+    return "I'm sorry, I'm having trouble processing your message. Please try again later.";
   }
 }
 

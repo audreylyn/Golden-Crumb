@@ -20,12 +20,7 @@ export const WebsiteEditor: React.FC = () => {
   const [facebookMessengerId, setFacebookMessengerId] = useState('');
   const [chatSupportEnabled, setChatSupportEnabled] = useState(false);
   const [chatSupportConfig, setChatSupportConfig] = useState<any>(null);
-  const [chatbotProvider, setChatbotProvider] = useState<'simple' | 'botpress' | 'gemini'>('simple');
-  const [chatbotApiKey, setChatbotApiKey] = useState('');
-  const [chatbotBotId, setChatbotBotId] = useState('');
-  const [chatbotWebhookUrl, setChatbotWebhookUrl] = useState('');
   const [chatbotConfigJson, setChatbotConfigJson] = useState('{}');
-  const [knowledgeBaseSource, setKnowledgeBaseSource] = useState<'sheets'>('sheets');
   const [knowledgeBaseSheetsUrl, setKnowledgeBaseSheetsUrl] = useState('');
   
   // Get domain from environment variable or use default
@@ -81,17 +76,12 @@ export const WebsiteEditor: React.FC = () => {
       if (!chatError && chatData) {
         setChatSupportConfig(chatData);
         setChatSupportEnabled(chatData.is_enabled || false);
-        setChatbotProvider(chatData.chatbot_provider || 'simple');
-        setChatbotApiKey(chatData.chatbot_api_key || '');
-        setChatbotBotId(chatData.chatbot_bot_id || '');
-        setChatbotWebhookUrl(chatData.chatbot_webhook_url || '');
         setChatbotConfigJson(JSON.stringify(chatData.chatbot_config || {}, null, 2));
-        // Knowledge base is now always from Google Sheets
-        const kbUrl = chatData.knowledge_base || '';
+        // Knowledge base from Google Sheets (can be from database or env var)
+        const kbUrl = chatData.knowledge_base || import.meta.env.VITE_GOOGLE_SHEETS_KB_URL || '';
         if (kbUrl && (kbUrl.startsWith('http://') || kbUrl.startsWith('https://'))) {
           setKnowledgeBaseSheetsUrl(kbUrl);
         } else {
-          // If old database value exists, clear it (migration)
           setKnowledgeBaseSheetsUrl('');
         }
       } else if (chatError && chatError.code === 'PGRST116') {
@@ -390,80 +380,35 @@ export const WebsiteEditor: React.FC = () => {
               {/* Chatbot Configuration */}
               {chatSupportEnabled && (
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Chatbot Provider
-                    </label>
-                    <select
-                      value={chatbotProvider}
-                      onChange={(e) => setChatbotProvider(e.target.value as any)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="simple">Simple (Rule-based)</option>
-                      <option value="botpress">Botpress Cloud (Easiest - Free up to 2k msgs/mo)</option>
-                      <option value="gemini">Google Gemini (Best Custom Build - Free, High Limits)</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {chatbotProvider === 'simple' && 'Basic keyword matching (free, no setup)'}
-                      {chatbotProvider === 'botpress' && 'Easiest start: Widget + backend + AI logic included. Free up to 2,000 messages/month.'}
-                      {chatbotProvider === 'gemini' && 'Best custom build: Use your backend + Google Gemini API. $0 cost, high limits, full control.'}
+                  {/* Gemini Info - Uses environment variable */}
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4">
+                    <p className="text-sm text-blue-800">
+                      <strong>🤖 Using Google Gemini</strong><br />
+                      API Key is automatically loaded from <code className="bg-white px-1 rounded">VITE_GEMINI_API_KEY</code> environment variable (same as AI content generation).
+                      {!import.meta.env.VITE_GEMINI_API_KEY && (
+                        <span className="block mt-1 text-red-600 text-xs">
+                          ⚠️ Warning: VITE_GEMINI_API_KEY not found in environment variables.
+                        </span>
+                      )}
                     </p>
                   </div>
 
-                  {chatbotProvider !== 'simple' && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          API Key
-                        </label>
-                        <input
-                          type="password"
-                          value={chatbotApiKey}
-                          onChange={(e) => setChatbotApiKey(e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                          placeholder={chatbotProvider === 'botpress' ? 'Your Botpress API Key' : 'Your Google Gemini API Key'}
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          {chatbotProvider === 'botpress' && 'Get your API key from Botpress Dashboard → Settings → API'}
-                          {chatbotProvider === 'gemini' && 'Get your API key from https://aistudio.google.com/app/apikey (free)'}
-                        </p>
-                      </div>
-
-                      {chatbotProvider === 'botpress' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Bot ID
-                          </label>
-                          <input
-                            type="text"
-                            value={chatbotBotId}
-                            onChange={(e) => setChatbotBotId(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Your Botpress Bot ID"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Found in Botpress Dashboard → Your Bot → Settings
-                          </p>
-                        </div>
-                      )}
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Advanced Config (JSON)
-                        </label>
-                        <textarea
-                          value={chatbotConfigJson}
-                          onChange={(e) => setChatbotConfigJson(e.target.value)}
-                          rows={4}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                          placeholder='{"model": "gpt-3.5-turbo", "temperature": 0.7}'
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Provider-specific configuration. See integration guide for examples.
-                        </p>
-                      </div>
-                    </>
-                  )}
+                  {/* Advanced Config */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Advanced Config (JSON)
+                    </label>
+                    <textarea
+                      value={chatbotConfigJson}
+                      onChange={(e) => setChatbotConfigJson(e.target.value)}
+                      rows={4}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                      placeholder='{"model": "gemini-1.5-flash", "temperature": 0.7, "maxTokens": 500}'
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Gemini-specific configuration. Example: <code className="bg-gray-100 px-1 rounded">{"model": "gemini-1.5-flash", "temperature": 0.7}</code>
+                    </p>
+                  </div>
 
                   {/* Knowledge Base - Google Sheets Only */}
                   <div className="mt-4 pt-4 border-t border-gray-200">
@@ -475,30 +420,29 @@ export const WebsiteEditor: React.FC = () => {
                       value={knowledgeBaseSheetsUrl}
                       onChange={(e) => setKnowledgeBaseSheetsUrl(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-mono"
-                      placeholder="https://script.google.com/macros/s/YOUR-SCRIPT-ID/exec"
+                      placeholder={import.meta.env.VITE_GOOGLE_SHEETS_KB_URL || "https://script.google.com/macros/s/YOUR-SCRIPT-ID/exec"}
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      <strong>💡 Pro Tip:</strong> Use Google Sheets to update business hours without redeploying! 
+                      <strong>💡 Pro Tip:</strong> You can set this globally in <code className="bg-gray-100 px-1 rounded">.env</code> as <code className="bg-gray-100 px-1 rounded">VITE_GOOGLE_SHEETS_KB_URL</code> so you don't need to paste it for each website!
                       The system will automatically append <code className="bg-gray-100 px-1 rounded">?website=subdomain</code> to fetch the correct tab.
-                      {chatbotProvider === 'gemini' && ' The content will be automatically fetched and included in the system prompt.'}
                     </p>
+                    {import.meta.env.VITE_GOOGLE_SHEETS_KB_URL && (
+                      <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+                        <p className="text-xs text-green-700">
+                          ✅ <strong>Global URL detected:</strong> Using <code className="bg-white px-1 rounded">{import.meta.env.VITE_GOOGLE_SHEETS_KB_URL}</code> from environment variable. You can override it per-website above if needed.
+                        </p>
+                      </div>
+                    )}
                     <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                       <p className="text-xs text-gray-700 mb-2">
-                        <strong>📋 Setup Instructions:</strong>
+                        <strong>📋 Quick Setup:</strong>
                       </p>
                       <ol className="text-xs text-gray-700 list-decimal list-inside space-y-1 ml-2">
-                        <li>Create a Google Spreadsheet at <a href="https://sheets.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">sheets.google.com</a></li>
-                        <li>Create tabs named after your websites (e.g., "rose", "starbucks", "default")</li>
-                        <li>Add business info in each tab (column A recommended)</li>
-                        <li>Go to <strong>Extensions → Apps Script</strong> and deploy as Web App</li>
-                        <li>Copy the Web App URL and paste it above</li>
-                        <li>See <code className="bg-white px-1 rounded">GOOGLE-SHEETS-KB-SETUP.md</code> for detailed instructions</li>
+                        <li>Create Google Spreadsheet with tabs for each website</li>
+                        <li>Deploy Apps Script (see <code className="bg-white px-1 rounded">google-apps-script-kb.js</code>)</li>
+                        <li>Add to <code className="bg-white px-1 rounded">.env</code>: <code className="bg-white px-1 rounded">VITE_GOOGLE_SHEETS_KB_URL=your-url</code> (set once, works for all websites)</li>
+                        <li>Or paste URL above for this website only</li>
                       </ol>
-                    </div>
-                    <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
-                      <p className="text-xs text-green-700">
-                        ✅ <strong>Benefits:</strong> Easy editing, no database storage, update without redeploying, free, version history
-                      </p>
                     </div>
                   </div>
                 </div>
