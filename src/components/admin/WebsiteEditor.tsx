@@ -18,6 +18,8 @@ export const WebsiteEditor: React.FC = () => {
   const [themePresets, setThemePresets] = useState<ThemePreset[]>([]);
   const [contactInfo, setContactInfo] = useState<any>(null);
   const [facebookMessengerId, setFacebookMessengerId] = useState('');
+  const [chatSupportEnabled, setChatSupportEnabled] = useState(false);
+  const [chatSupportConfig, setChatSupportConfig] = useState<any>(null);
   
   // Get domain from environment variable or use default
   const domain = import.meta.env.VITE_DOMAIN || 'likhasiteworks.studio';
@@ -60,6 +62,36 @@ export const WebsiteEditor: React.FC = () => {
         // Get Facebook Messenger ID from contact_info
         // It can be stored in facebook_messenger_id field or in social_links.facebook
         setFacebookMessengerId(contactData.facebook_messenger_id || contactData.social_links?.facebook_messenger || '');
+      }
+
+      // Load chat support config
+      const { data: chatData, error: chatError } = await supabase
+        .from('chat_support_config')
+        .select('*')
+        .eq('website_id', websiteId)
+        .single();
+
+      if (!chatError && chatData) {
+        setChatSupportConfig(chatData);
+        setChatSupportEnabled(chatData.is_enabled || false);
+      } else if (chatError && chatError.code === 'PGRST116') {
+        // Chat support config doesn't exist, create default (disabled)
+        const { data: newChatData, error: createError } = await supabase
+          .from('chat_support_config')
+          .insert({
+            website_id: websiteId,
+            is_enabled: false,
+            greeting_message: 'Hi! How can we help you today?',
+            agent_name: 'Support',
+            position: 'bottom-right',
+          })
+          .select()
+          .single();
+
+        if (!createError && newChatData) {
+          setChatSupportConfig(newChatData);
+          setChatSupportEnabled(false);
+        }
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -116,6 +148,31 @@ export const WebsiteEditor: React.FC = () => {
           });
 
         if (contactError) throw contactError;
+      }
+
+      // Update chat support config
+      if (chatSupportConfig && websiteId) {
+        const { error: chatError } = await supabase
+          .from('chat_support_config')
+          .update({
+            is_enabled: chatSupportEnabled,
+          })
+          .eq('id', chatSupportConfig.id);
+
+        if (chatError) throw chatError;
+      } else if (websiteId && !chatSupportConfig) {
+        // Create chat support config if it doesn't exist
+        const { error: chatError } = await supabase
+          .from('chat_support_config')
+          .insert({
+            website_id: websiteId,
+            is_enabled: chatSupportEnabled,
+            greeting_message: 'Hi! How can we help you today?',
+            agent_name: 'Support',
+            position: 'bottom-right',
+          });
+
+        if (chatError) throw chatError;
       }
 
       alert('Website updated successfully!');
@@ -244,7 +301,8 @@ export const WebsiteEditor: React.FC = () => {
             <h2 className="text-xl font-bold text-gray-900">Integrations</h2>
           </div>
           
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Facebook Messenger */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Facebook Messenger ID
@@ -262,6 +320,33 @@ export const WebsiteEditor: React.FC = () => {
               <p className="text-xs text-gray-500 mt-2">
                 Example: <code className="bg-gray-100 px-1 rounded">yourbakery</code> or <code className="bg-gray-100 px-1 rounded">123456789012345</code>
               </p>
+            </div>
+
+            {/* Chat Support Toggle */}
+            <div className="border-t border-gray-200 pt-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Chat Support
+                  </label>
+                  <p className="text-xs text-gray-500">
+                    Enable live chat support widget on your website. Disabled by default.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setChatSupportEnabled(!chatSupportEnabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    chatSupportEnabled ? 'bg-blue-600' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      chatSupportEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
         </div>

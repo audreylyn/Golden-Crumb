@@ -485,16 +485,26 @@ export async function copyWebsiteContent(targetWebsiteId: string, sourceWebsiteI
       .single();
 
     if (chatData) {
-      const { is_enabled, greeting_message, offline_message, position, theme_color, agent_name, agent_avatar_url } = chatData;
+      const { greeting_message, offline_message, position, theme_color, agent_name, agent_avatar_url } = chatData;
+      // Always set is_enabled to false by default for new websites
       await supabase.from('chat_support_config').upsert({
         website_id: targetWebsiteId,
-        is_enabled,
+        is_enabled: false, // Disabled by default
         greeting_message,
         offline_message,
         position,
         theme_color,
         agent_name,
         agent_avatar_url,
+      }, { onConflict: 'website_id' });
+    } else {
+      // Create default chat support config with is_enabled = false
+      await supabase.from('chat_support_config').upsert({
+        website_id: targetWebsiteId,
+        is_enabled: false, // Disabled by default
+        greeting_message: 'Hi! How can we help you today?',
+        agent_name: 'Support',
+        position: 'bottom-right',
       }, { onConflict: 'website_id' });
     }
 

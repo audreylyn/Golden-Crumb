@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Minimize2, Croissant, User } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { supabase, getWebsiteId } from '../src/lib/supabase';
 
 interface Message {
   id: number;
@@ -10,6 +11,8 @@ interface Message {
 }
 
 export const ChatSupport: React.FC = () => {
+  const [isEnabled, setIsEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { 
@@ -32,6 +35,69 @@ export const ChatSupport: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isOpen, isTyping]);
+
+  // Check if chat support is enabled for this website
+  useEffect(() => {
+    checkChatSupportEnabled();
+  }, []);
+
+  const checkChatSupportEnabled = async () => {
+    try {
+      const websiteId = await getWebsiteId();
+      if (!websiteId) {
+        setIsEnabled(false);
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('chat_support_config')
+        .select('is_enabled, greeting_message')
+        .eq('website_id', websiteId)
+        .single();
+
+      if (error) {
+        // If config doesn't exist (PGRST116) or any other error, default to disabled
+        if (error.code === 'PGRST116') {
+          // Config doesn't exist, create it as disabled
+          const { error: insertError } = await supabase
+            .from('chat_support_config')
+            .insert({
+              website_id: websiteId,
+              is_enabled: false,
+              greeting_message: 'Hi! How can we help you today?',
+              agent_name: 'Support',
+              position: 'bottom-right',
+            });
+          
+          if (insertError) {
+            console.error('Error creating chat support config:', insertError);
+          }
+        }
+        setIsEnabled(false);
+        setLoading(false);
+        return;
+      }
+
+      if (data) {
+        // Explicitly check is_enabled - only enable if it's explicitly true
+        setIsEnabled(data.is_enabled === true);
+        // Update greeting message if available
+        if (data.greeting_message && messages.length > 0 && messages[0].sender === 'bot') {
+          setMessages(prev => prev.map((msg, idx) => 
+            idx === 0 ? { ...msg, text: data.greeting_message } : msg
+          ));
+        }
+      } else {
+        setIsEnabled(false);
+      }
+    } catch (error) {
+      console.error('Error checking chat support:', error);
+      setIsEnabled(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +146,11 @@ export const ChatSupport: React.FC = () => {
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
+
+  // Don't render if disabled or still loading
+  if (loading || !isEnabled) {
+    return null;
+  }
 
   return (
     <>
