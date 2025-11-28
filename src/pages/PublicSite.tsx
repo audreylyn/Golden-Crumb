@@ -28,20 +28,9 @@ export const PublicSite: React.FC = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const { loading, websiteData, currentWebsite } = useWebsite();
-  
-  // Show loading state while website is being detected/loaded
-  if (loading || (!websiteData && currentWebsite)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading website...</p>
-        </div>
-      </div>
-    );
-  }
 
   // Handle hash navigation - scroll to section when hash is present
+  // IMPORTANT: All hooks must be called before any conditional returns
   useEffect(() => {
     const handleHashNavigation = () => {
       const hash = window.location.hash;
@@ -124,6 +113,19 @@ export const PublicSite: React.FC = () => {
       setCartItems([]);
     }
   };
+
+  // Show loading state while website is being detected/loaded
+  // This check must come AFTER all hooks are called
+  if (loading || (!websiteData && currentWebsite)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading website...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-bakery-cream overflow-x-hidden">
