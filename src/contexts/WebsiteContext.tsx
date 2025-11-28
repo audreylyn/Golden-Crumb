@@ -58,6 +58,11 @@ export const WebsiteProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (websiteResult.error) throw websiteResult.error;
       setWebsiteData(websiteResult.data);
 
+      // Update document title with website name
+      if (websiteResult.data?.site_title) {
+        document.title = websiteResult.data.site_title;
+      }
+
       // Load theme preset if website has one
       if (websiteResult.data?.theme_preset_id) {
         const { data: themeData, error: themeError } = await supabase

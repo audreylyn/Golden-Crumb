@@ -9,6 +9,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, LogIn, AlertCircle } from 'lucide-react';
 
 export const Login: React.FC = () => {
+  useEffect(() => {
+    document.title = 'Login - WebGen-AI';
+  }, []);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');

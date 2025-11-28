@@ -21,6 +21,9 @@ interface AdminLayoutProps {
 }
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
+  React.useEffect(() => {
+    document.title = 'Admin Dashboard - WebGen-AI';
+  }, []);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
