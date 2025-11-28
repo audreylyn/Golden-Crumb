@@ -20,7 +20,7 @@ export const WebsiteEditor: React.FC = () => {
   const [facebookMessengerId, setFacebookMessengerId] = useState('');
   const [chatSupportEnabled, setChatSupportEnabled] = useState(false);
   const [chatSupportConfig, setChatSupportConfig] = useState<any>(null);
-  const [chatbotProvider, setChatbotProvider] = useState<'simple' | 'botpress' | 'dialogflow' | 'openai' | 'custom'>('simple');
+  const [chatbotProvider, setChatbotProvider] = useState<'simple' | 'botpress' | 'gemini'>('simple');
   const [chatbotApiKey, setChatbotApiKey] = useState('');
   const [chatbotBotId, setChatbotBotId] = useState('');
   const [chatbotWebhookUrl, setChatbotWebhookUrl] = useState('');
@@ -392,41 +392,36 @@ export const WebsiteEditor: React.FC = () => {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="simple">Simple (Rule-based)</option>
-                      <option value="botpress">Botpress</option>
-                      <option value="dialogflow">Dialogflow (Google)</option>
-                      <option value="openai">OpenAI GPT</option>
-                      <option value="custom">Custom Webhook</option>
+                      <option value="botpress">Botpress Cloud (Easiest - Free up to 2k msgs/mo)</option>
+                      <option value="gemini">Google Gemini (Best Custom Build - Free, High Limits)</option>
                     </select>
                     <p className="text-xs text-gray-500 mt-1">
-                      {chatbotProvider === 'simple' && 'Basic keyword matching (free)'}
-                      {chatbotProvider === 'botpress' && 'Professional chatbot platform with visual builder'}
-                      {chatbotProvider === 'dialogflow' && 'Google\'s conversational AI'}
-                      {chatbotProvider === 'openai' && 'GPT-powered intelligent chatbot'}
-                      {chatbotProvider === 'custom' && 'Your own webhook-based chatbot'}
+                      {chatbotProvider === 'simple' && 'Basic keyword matching (free, no setup)'}
+                      {chatbotProvider === 'botpress' && 'Easiest start: Widget + backend + AI logic included. Free up to 2,000 messages/month.'}
+                      {chatbotProvider === 'gemini' && 'Best custom build: Use your backend + Google Gemini API. $0 cost, high limits, full control.'}
                     </p>
                   </div>
 
                   {chatbotProvider !== 'simple' && (
                     <>
-                      {chatbotProvider !== 'custom' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            API Key
-                          </label>
-                          <input
-                            type="password"
-                            value={chatbotApiKey}
-                            onChange={(e) => setChatbotApiKey(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                            placeholder="Enter your API key"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Your API key is stored securely. See guide for setup instructions.
-                          </p>
-                        </div>
-                      )}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          API Key
+                        </label>
+                        <input
+                          type="password"
+                          value={chatbotApiKey}
+                          onChange={(e) => setChatbotApiKey(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                          placeholder={chatbotProvider === 'botpress' ? 'Your Botpress API Key' : 'Your Google Gemini API Key'}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          {chatbotProvider === 'botpress' && 'Get your API key from Botpress Dashboard → Settings → API'}
+                          {chatbotProvider === 'gemini' && 'Get your API key from https://aistudio.google.com/app/apikey (free)'}
+                        </p>
+                      </div>
 
-                      {(chatbotProvider === 'botpress' || chatbotProvider === 'dialogflow') && (
+                      {chatbotProvider === 'botpress' && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Bot ID
@@ -436,23 +431,11 @@ export const WebsiteEditor: React.FC = () => {
                             value={chatbotBotId}
                             onChange={(e) => setChatbotBotId(e.target.value)}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder={chatbotProvider === 'botpress' ? 'Your Botpress Bot ID' : 'Google Cloud Project ID'}
+                            placeholder="Your Botpress Bot ID"
                           />
-                        </div>
-                      )}
-
-                      {chatbotProvider === 'custom' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Webhook URL
-                          </label>
-                          <input
-                            type="url"
-                            value={chatbotWebhookUrl}
-                            onChange={(e) => setChatbotWebhookUrl(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="https://your-api.com/chatbot"
-                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Found in Botpress Dashboard → Your Bot → Settings
+                          </p>
                         </div>
                       )}
 
@@ -488,10 +471,9 @@ export const WebsiteEditor: React.FC = () => {
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Store your business information, FAQs, product details, and policies here. 
-                      {chatbotProvider === 'openai' && ' This will be automatically included in the system prompt.'}
+                      {chatbotProvider === 'gemini' && ' This will be automatically included in the system prompt for Gemini.'}
                       {chatbotProvider === 'botpress' && ' You can also manage knowledge base in Botpress dashboard.'}
-                      {chatbotProvider === 'dialogflow' && ' You can also create intents in Dialogflow console.'}
-                      {chatbotProvider === 'custom' && ' Your webhook will receive this in the request.'}
+                      {chatbotProvider === 'simple' && ' Used for keyword matching to extract relevant information.'}
                     </p>
                   </div>
                 </div>

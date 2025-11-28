@@ -556,7 +556,7 @@ export interface ChatSupportConfig {
   agent_name: string;
   agent_avatar_url?: string;
   working_hours: Record<string, any>;
-  chatbot_provider?: 'simple' | 'botpress' | 'dialogflow' | 'openai' | 'custom';
+  chatbot_provider?: 'simple' | 'botpress' | 'gemini';
   chatbot_api_key?: string;
   chatbot_bot_id?: string;
   chatbot_webhook_url?: string;

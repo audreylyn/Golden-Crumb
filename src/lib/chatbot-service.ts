@@ -6,7 +6,7 @@
 
 import { supabase, getWebsiteId } from './supabase';
 
-export type ChatbotProvider = 'simple' | 'botpress' | 'dialogflow' | 'openai' | 'custom';
+export type ChatbotProvider = 'simple' | 'botpress' | 'gemini';
 
 export interface ChatbotConfig {
   provider: ChatbotProvider;
@@ -73,14 +73,8 @@ export async function sendChatbotMessage(
     case 'botpress':
       return handleBotpress(message, config, conversationId);
     
-    case 'dialogflow':
-      return handleDialogflow(message, config, conversationId);
-    
-    case 'openai':
-      return handleOpenAI(message, config, conversationId);
-    
-    case 'custom':
-      return handleCustomWebhook(message, config, conversationId);
+    case 'gemini':
+      return handleGemini(message, config, conversationId);
     
     default:
       return handleSimpleBot(message, config.knowledgeBase);
@@ -181,164 +175,113 @@ async function handleBotpress(
 }
 
 /**
- * Dialogflow (Google) integration
- * Documentation: https://cloud.google.com/dialogflow/es/docs
+ * Google Gemini integration
+ * Documentation: https://ai.google.dev/docs
+ * Free tier: High limits, $0 cost
  */
-async function handleDialogflow(
-  message: string,
-  config: ChatbotConfig,
-  conversationId?: string
-): Promise<string> {
-  if (!config.botId || !config.apiKey) {
-    console.error('Dialogflow: Missing botId or apiKey');
-    return handleSimpleBot(message, config.knowledgeBase);
-  }
-
-  try {
-    // Dialogflow API endpoint
-    const projectId = config.botId; // In Dialogflow, botId is the project ID
-    const apiUrl = `https://dialogflow.googleapis.com/v2/projects/${projectId}/agent/sessions/${conversationId || 'default'}:detectIntent`;
-    
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        queryInput: {
-          text: {
-            text: message,
-            languageCode: config.config?.languageCode || 'en',
-          },
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Dialogflow API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    if (data.queryResult && data.queryResult.fulfillmentText) {
-      return data.queryResult.fulfillmentText;
-    }
-    
-    return 'I received your message.';
-  } catch (error) {
-    console.error('Dialogflow error:', error);
-    return handleSimpleBot(message, config.knowledgeBase);
-  }
-}
-
-/**
- * OpenAI GPT integration
- * Documentation: https://platform.openai.com/docs/guides/chat
- */
-async function handleOpenAI(
+async function handleGemini(
   message: string,
   config: ChatbotConfig,
   conversationId?: string
 ): Promise<string> {
   if (!config.apiKey) {
-    console.error('OpenAI: Missing apiKey');
+    console.error('Gemini: Missing apiKey');
     return handleSimpleBot(message, config.knowledgeBase);
   }
 
   try {
-    const apiUrl = 'https://api.openai.com/v1/chat/completions';
+    // Build system instruction with knowledge base if available
+    let systemInstruction = config.config?.systemPrompt || 'You are a helpful customer support assistant for a business. Be friendly, concise, and accurate.';
     
-    // Build system prompt with knowledge base if available
-    let systemPrompt = config.config?.systemPrompt || 'You are a helpful customer support assistant for a business.';
-    
-    // If knowledge base exists, prepend it to system prompt
+    // If knowledge base exists, prepend it to system instruction
     if (config.knowledgeBase) {
-      systemPrompt = `${systemPrompt}\n\nKnowledge Base:\n${config.knowledgeBase}\n\nUse the knowledge base above to answer questions accurately. If the information is not in the knowledge base, politely say you don't have that information and suggest contacting support directly.`;
+      systemInstruction = `${systemInstruction}\n\nKnowledge Base:\n${config.knowledgeBase}\n\nUse the knowledge base above to answer questions accurately. If the information is not in the knowledge base, politely say you don't have that information and suggest contacting support directly.`;
     }
+
+    // Use Gemini API via server proxy or direct API call
+    const model = config.config?.model || 'gemini-1.5-flash';
     
-    // Get conversation history if available (you might want to store this)
-    const messages = [
-      {
-        role: 'system' as const,
-        content: systemPrompt,
-      },
-      {
-        role: 'user' as const,
-        content: message,
-      },
-    ];
+    // Try to use server proxy first (if available), otherwise use direct API
+    let apiUrl: string;
+    let headers: Record<string, string>;
+    let body: any;
+
+    // Check if we have a server proxy endpoint
+    const useProxy = window.location.hostname !== 'localhost' || import.meta.env.VITE_USE_GEMINI_PROXY === 'true';
+    
+    if (useProxy) {
+      // Use server proxy (recommended for production)
+      apiUrl = '/api/gemini';
+      headers = {
+        'Content-Type': 'application/json',
+      };
+      body = {
+        model: model,
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: message }]
+          }
+        ],
+        systemInstruction: {
+          parts: [{ text: systemInstruction }]
+        },
+        generationConfig: {
+          temperature: config.config?.temperature || 0.7,
+          topK: config.config?.topK || 40,
+          topP: config.config?.topP || 0.95,
+          maxOutputTokens: config.config?.maxTokens || 500,
+        }
+      };
+    } else {
+      // Direct API call (for development)
+      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`;
+      headers = {
+        'Content-Type': 'application/json',
+      };
+      body = {
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: message }]
+          }
+        ],
+        systemInstruction: {
+          parts: [{ text: systemInstruction }]
+        },
+        generationConfig: {
+          temperature: config.config?.temperature || 0.7,
+          topK: config.config?.topK || 40,
+          topP: config.config?.topP || 0.95,
+          maxOutputTokens: config.config?.maxTokens || 500,
+        }
+      };
+    }
 
     const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: config.config?.model || 'gpt-3.5-turbo',
-        messages: messages,
-        temperature: config.config?.temperature || 0.7,
-        max_tokens: config.config?.maxTokens || 150,
-      }),
+      headers: headers,
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Gemini API error: ${response.statusText} - ${JSON.stringify(errorData)}`);
     }
 
     const data = await response.json();
     
-    if (data.choices && data.choices.length > 0) {
-      return data.choices[0].message.content;
+    // Extract response text from Gemini API response
+    if (data.candidates && data.candidates.length > 0) {
+      const candidate = data.candidates[0];
+      if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
+        return candidate.content.parts[0].text;
+      }
     }
     
     return 'I received your message.';
   } catch (error) {
-    console.error('OpenAI error:', error);
-    return handleSimpleBot(message, config.knowledgeBase);
-  }
-}
-
-/**
- * Custom webhook integration
- */
-async function handleCustomWebhook(
-  message: string,
-  config: ChatbotConfig,
-  conversationId?: string
-): Promise<string> {
-  if (!config.webhookUrl) {
-    console.error('Custom webhook: Missing webhookUrl');
-    return handleSimpleBot(message, config.knowledgeBase);
-  }
-
-  try {
-    const response = await fetch(config.webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(config.apiKey && { 'Authorization': `Bearer ${config.apiKey}` }),
-      },
-      body: JSON.stringify({
-        message: message,
-        conversationId: conversationId,
-        timestamp: new Date().toISOString(),
-        knowledgeBase: config.knowledgeBase,
-        ...config.config,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Webhook error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    // Expect webhook to return { text: "response" } or { message: "response" }
-    return data.text || data.message || 'I received your message.';
-  } catch (error) {
-    console.error('Custom webhook error:', error);
+    console.error('Gemini error:', error);
     return handleSimpleBot(message, config.knowledgeBase);
   }
 }
