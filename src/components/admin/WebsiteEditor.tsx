@@ -20,7 +20,7 @@ export const WebsiteEditor: React.FC = () => {
   const [facebookMessengerId, setFacebookMessengerId] = useState('');
   const [chatSupportEnabled, setChatSupportEnabled] = useState(false);
   const [chatSupportConfig, setChatSupportConfig] = useState<any>(null);
-  const [chatbotConfigJson, setChatbotConfigJson] = useState('{}');
+  const [chatbotConfigJson, setChatbotConfigJson] = useState('{"model": "gemini-2.5-flash", "temperature": 0.7}');
   const [knowledgeBaseSheetsUrl, setKnowledgeBaseSheetsUrl] = useState('');
   
   // Get domain from environment variable or use default
@@ -76,7 +76,9 @@ export const WebsiteEditor: React.FC = () => {
       if (!chatError && chatData) {
         setChatSupportConfig(chatData);
         setChatSupportEnabled(chatData.is_enabled || false);
-        setChatbotConfigJson(JSON.stringify(chatData.chatbot_config || {}, null, 2));
+        // Use default config if empty
+        const defaultConfig = { model: "gemini-2.5-flash", temperature: 0.7 };
+        setChatbotConfigJson(JSON.stringify(chatData.chatbot_config || defaultConfig, null, 2));
         // Knowledge base from Google Sheets (can be from database or env var)
         const kbUrl = chatData.knowledge_base || import.meta.env.VITE_GOOGLE_SHEETS_KB_URL || '';
         if (kbUrl && (kbUrl.startsWith('http://') || kbUrl.startsWith('https://'))) {
@@ -161,11 +163,15 @@ export const WebsiteEditor: React.FC = () => {
       }
 
       // Update chat support config with chatbot settings
-      let chatbotConfig = {};
+      const defaultConfig = { model: "gemini-2.5-flash", temperature: 0.7 };
+      let chatbotConfig = defaultConfig;
       try {
-        chatbotConfig = JSON.parse(chatbotConfigJson);
+        const parsed = JSON.parse(chatbotConfigJson);
+        // Use parsed config if valid, otherwise use defaults
+        chatbotConfig = Object.keys(parsed).length > 0 ? parsed : defaultConfig;
       } catch (e) {
-        console.warn('Invalid chatbot config JSON, using empty object');
+        console.warn('Invalid chatbot config JSON, using defaults');
+        chatbotConfig = defaultConfig;
       }
 
       if (chatSupportConfig && websiteId) {
@@ -403,10 +409,10 @@ export const WebsiteEditor: React.FC = () => {
                       onChange={(e) => setChatbotConfigJson(e.target.value)}
                       rows={4}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                      placeholder='{"model": "gemini-1.5-flash", "temperature": 0.7, "maxTokens": 500}'
+                      placeholder='{"model": "gemini-2.5-flash", "temperature": 0.7, "maxTokens": 500}'
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Gemini-specific configuration. Example: <code className="bg-gray-100 px-1 rounded">{"{\"model\": \"gemini-1.5-flash\", \"temperature\": 0.7}"}</code>
+                      Gemini-specific configuration. Example: <code className="bg-gray-100 px-1 rounded">{"{\"model\": \"gemini-2.5-flash\", \"temperature\": 0.7}"}</code>
                     </p>
                   </div>
 

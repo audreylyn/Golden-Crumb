@@ -20,7 +20,7 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    const { model = 'gemini-1.5-flash', ...body } = req.body;
+    const { model = 'gemini-2.5-flash', ...body } = req.body;
     
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 

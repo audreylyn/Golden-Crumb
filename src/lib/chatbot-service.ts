@@ -130,7 +130,7 @@ async function handleGemini(
     }
 
     // Use Gemini API via server proxy or direct API call
-    const model = config.config?.model || 'gemini-1.5-flash';
+    const model = config.config?.model || 'gemini-2.5-flash';
     
     // Try to use server proxy first (if available), otherwise use direct API
     let apiUrl: string;

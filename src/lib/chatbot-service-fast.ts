@@ -293,7 +293,7 @@ async function handleGeminiFast(
       systemInstruction = `${systemInstruction}\n\nKnowledge Base:\n${knowledgeBase}\n\nUse the knowledge base above to answer questions accurately.`;
     }
 
-    const model = config.config?.model || 'gemini-1.5-flash';
+    const model = config.config?.model || 'gemini-2.5-flash';
     
     // Use server proxy (faster, API key hidden)
     const apiUrl = '/api/gemini';
