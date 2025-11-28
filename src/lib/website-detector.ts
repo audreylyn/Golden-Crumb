@@ -153,6 +153,28 @@ export function getCurrentMode(): 'public' | 'editor' | 'admin' {
 }
 
 /**
+ * Detect website subdomain from URL (no database query)
+ * Fast way to get subdomain for knowledge base lookup
+ */
+export function detectWebsiteSubdomain(): string | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const hostname = window.location.hostname;
+  const params = new URLSearchParams(window.location.search);
+
+  // Development: Check for ?site= parameter first
+  const siteParam = params.get('site') || params.get('website');
+  if (siteParam) {
+    return siteParam;
+  }
+
+  // Production: Extract from subdomain
+  return getSubdomain(hostname);
+}
+
+/**
  * Build URL for website
  */
 export function buildWebsiteUrl(
