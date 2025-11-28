@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Globe, Users, Activity, Plus, ExternalLink } from 'lucide-react';
+import { Globe, Activity, Plus, ExternalLink } from 'lucide-react';
 
 interface Stats {
   totalWebsites: number;
@@ -40,10 +40,6 @@ export const Dashboard: React.FC = () => {
         .select('*', { count: 'exact', head: true })
         .eq('is_active', true);
 
-      // Get users count
-      const { count: usersCount } = await supabase
-        .from('user_profiles')
-        .select('*', { count: 'exact', head: true });
 
       // Get recent activity
       const { data: activity } = await supabase
@@ -55,7 +51,7 @@ export const Dashboard: React.FC = () => {
       setStats({
         totalWebsites: websitesCount || 0,
         activeWebsites: activeCount || 0,
-        totalUsers: usersCount || 0,
+        totalUsers: 0,
         recentActivity: activity || [],
       });
     } catch (error) {
@@ -87,13 +83,6 @@ export const Dashboard: React.FC = () => {
       value: stats.totalWebsites,
       subValue: `${stats.activeWebsites} active`,
       color: 'bg-blue-500',
-    },
-    {
-      icon: Users,
-      label: 'Total Users',
-      value: stats.totalUsers,
-      subValue: 'Editors & Admins',
-      color: 'bg-green-500',
     },
     {
       icon: Activity,
@@ -195,17 +184,6 @@ export const Dashboard: React.FC = () => {
           </div>
         </Link>
 
-        <Link
-          to="/admin/users"
-          className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white hover:shadow-lg transition group"
-        >
-          <Users size={32} className="mb-4" />
-          <h3 className="text-xl font-bold mb-2">Manage Users</h3>
-          <p className="text-green-100 mb-4">Invite editors and manage permissions</p>
-          <div className="flex items-center gap-2 text-sm font-medium group-hover:gap-3 transition-all">
-            Go to Users <ExternalLink size={16} />
-          </div>
-        </Link>
       </div>
     </div>
   );

@@ -9,7 +9,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { 
   LayoutDashboard, 
   Globe, 
-  Users, 
   Settings as SettingsIcon, 
   LogOut,
   User,
@@ -42,7 +41,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { to: '/admin/websites', icon: Globe, label: 'Websites' },
     { to: '/admin/sections', icon: Layers, label: 'Sections' },
-    { to: '/admin/users', icon: Users, label: 'Users' },
     { to: '/admin/settings', icon: SettingsIcon, label: 'Settings' },
   ];
 

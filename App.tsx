@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { WebsiteProvider } from './src/contexts/WebsiteContext';
-import { RequireAuth, RequireAdmin, RequireWebsiteAccess } from './src/components/ProtectedRoute';
+import { RequireAuth, RequireAdmin } from './src/components/ProtectedRoute';
 import { WebsiteSelector } from './src/components/WebsiteSelector';
 import { getCurrentMode } from './src/lib/website-detector';
 
@@ -115,14 +115,8 @@ const EditorRoute: React.FC = () => {
     return <EditorPage />;
   }
   
-  // Otherwise require authentication (localhost development or deployment domains)
-  return (
-    <RequireAuth>
-      <RequireWebsiteAccess>
-        <EditorPage />
-      </RequireWebsiteAccess>
-    </RequireAuth>
-  );
+  // Otherwise allow access (no restrictions - can edit by URL)
+  return <EditorPage />;
 };
 
 function App() {
