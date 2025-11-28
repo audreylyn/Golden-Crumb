@@ -6,21 +6,21 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Globe, Activity, Plus, ExternalLink } from 'lucide-react';
+import { Globe, Plus, ExternalLink, CheckCircle, XCircle } from 'lucide-react';
 
 interface Stats {
   totalWebsites: number;
   activeWebsites: number;
+  inactiveWebsites: number;
   totalUsers: number;
-  recentActivity: any[];
 }
 
 export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<Stats>({
     totalWebsites: 0,
     activeWebsites: 0,
+    inactiveWebsites: 0,
     totalUsers: 0,
-    recentActivity: [],
   });
   const [loading, setLoading] = useState(true);
 
@@ -35,24 +35,23 @@ export const Dashboard: React.FC = () => {
         .from('websites')
         .select('*', { count: 'exact', head: true });
 
+      // Get active websites count
       const { count: activeCount } = await supabase
         .from('websites')
         .select('*', { count: 'exact', head: true })
         .eq('is_active', true);
 
-
-      // Get recent activity
-      const { data: activity } = await supabase
-        .from('activity_log')
-        .select('*, user:user_profiles(full_name, email), website:websites(site_title)')
-        .order('created_at', { ascending: false })
-        .limit(10);
+      // Get inactive websites count
+      const { count: inactiveCount } = await supabase
+        .from('websites')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', false);
 
       setStats({
         totalWebsites: websitesCount || 0,
         activeWebsites: activeCount || 0,
+        inactiveWebsites: inactiveCount || 0,
         totalUsers: 0,
-        recentActivity: activity || [],
       });
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -66,7 +65,7 @@ export const Dashboard: React.FC = () => {
       <div className="p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
             ))}
@@ -81,15 +80,19 @@ export const Dashboard: React.FC = () => {
       icon: Globe,
       label: 'Total Websites',
       value: stats.totalWebsites,
-      subValue: `${stats.activeWebsites} active`,
       color: 'bg-blue-500',
     },
     {
-      icon: Activity,
-      label: 'Recent Activity',
-      value: stats.recentActivity.length,
-      subValue: 'Last 24 hours',
-      color: 'bg-purple-500',
+      icon: CheckCircle,
+      label: 'Active Sites',
+      value: stats.activeWebsites,
+      color: 'bg-green-500',
+    },
+    {
+      icon: XCircle,
+      label: 'Inactive Sites',
+      value: stats.inactiveWebsites,
+      color: 'bg-gray-500',
     },
   ];
 
@@ -118,7 +121,6 @@ export const Dashboard: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
                 <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-                <p className="text-xs text-gray-500 mt-1">{stat.subValue}</p>
               </div>
               <div className={`${stat.color} w-12 h-12 rounded-lg flex items-center justify-center text-white`}>
                 <stat.icon size={24} />
@@ -126,48 +128,6 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Recent Activity</h2>
-        </div>
-        <div className="divide-y divide-gray-200">
-          {stats.recentActivity.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <Activity size={48} className="mx-auto mb-4 opacity-20" />
-              <p>No recent activity</p>
-            </div>
-          ) : (
-            stats.recentActivity.map((activity: any) => (
-              <div key={activity.id} className="p-4 hover:bg-gray-50 transition">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-900">
-                      <span className="font-medium">
-                        {activity.user?.full_name || activity.user?.email || 'Unknown user'}
-                      </span>
-                      {' '}
-                      <span className="text-gray-600">{activity.action}</span>
-                      {' '}
-                      <span className="font-medium">{activity.resource}</span>
-                      {activity.website && (
-                        <>
-                          {' on '}
-                          <span className="font-medium">{activity.website.site_title}</span>
-                        </>
-                      )}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(activity.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
       </div>
 
       {/* Quick Actions */}
