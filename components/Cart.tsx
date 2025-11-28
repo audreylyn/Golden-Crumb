@@ -61,71 +61,41 @@ export const Cart: React.FC<CartProps> = ({
   };
 
   const handleCheckout = () => {
-    // Construct message for messenger (plain text, will be URL encoded)
-    let message = `Hello! I would like to place an order:\n\n`;
-    message += `Name: ${customerDetails.name}\n`;
-    message += `Location: ${customerDetails.location}\n`;
-    if (customerDetails.message) message += `Note: ${customerDetails.message}\n`;
-    message += `\nOrder Details:\n`;
+    if (!facebookMessengerId || items.length === 0) return;
+
+    // Construct message for messenger (matching your working format exactly)
+    const lines: string[] = [];
+    lines.push('New Order Request');
+    lines.push('------------------');
+    lines.push('Items:');
     
     items.forEach(item => {
-      message += `- ${item.name} (x${item.quantity}) - ₱${item.price * item.quantity}\n`;
+      const unit = item.price;
+      const subtotal = unit * item.quantity;
+      lines.push(`- ${item.name} x${item.quantity} @ ₱${unit} = ₱${subtotal}`);
     });
     
-    message += `\nTotal: ₱${total}`;
+    lines.push('------------------');
+    lines.push(`Total: ₱${total}`);
+    lines.push('');
+    lines.push(`Customer: ${customerDetails.name}`);
+    lines.push(`Location: ${customerDetails.location}`);
+    lines.push(`Note: ${customerDetails.message || 'N/A'}`);
 
-    // Navigate to Facebook Messenger if ID is configured
-    if (facebookMessengerId) {
-      // Facebook Messenger URL format: https://m.me/{page-id}?text={encoded-message}
-      // Ensure we use HTTPS and proper encoding
-      const encodedMessage = encodeURIComponent(message);
-      const messengerUrl = `https://m.me/${facebookMessengerId}?text=${encodedMessage}`;
-      
-      // Detect Firefox browser (Firefox has stricter HSTS policies)
-      const isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
-      
-      try {
-        if (isFirefox) {
-          // Firefox works better with direct navigation due to HSTS requirements
-          // Use a small delay to allow the cart to close first
-          setTimeout(() => {
-            window.location.href = messengerUrl;
-          }, 100);
-        } else {
-          // Other browsers: try to open in new tab
-          const newWindow = window.open(messengerUrl, '_blank', 'noopener,noreferrer');
-          
-          // If popup was blocked, fall back to direct navigation
-          if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-            setTimeout(() => {
-              window.location.href = messengerUrl;
-            }, 100);
-          }
-        }
-        
-        // Clear cart after redirecting
-        onClear();
-        onClose();
-      } catch (error) {
-        // If all else fails, show the message and let user copy it
-        console.error('Error opening Messenger:', error);
-        const userMessage = `Please copy this message and send it to the bakery via Facebook Messenger:\n\n${message}\n\nMessenger Link: https://m.me/${facebookMessengerId}`;
-        
-        // Try to copy to clipboard
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(message).then(() => {
-            alert(`${userMessage}\n\n(Message copied to clipboard!)`);
-          }).catch(() => {
-            alert(userMessage);
-          });
-        } else {
-          alert(userMessage);
-        }
-      }
-    } else {
-      // Fallback: show alert if no Messenger ID is configured
-      alert(`Facebook Messenger ID not configured. Please contact the website administrator.\n\nOrder details:\n\n${message}`);
-    }
+    const fullMessage = lines.join('\n');
+    const encodedMessage = encodeURIComponent(fullMessage);
+    
+    // Use exact same format as your working code
+    // Ensure we always use HTTPS (required for m.me)
+    const url = `https://m.me/${facebookMessengerId}?text=${encodedMessage}`;
+    
+    // Use the exact same simple approach as your working code
+    window.open(url, '_blank');
+    
+    // Clear cart and close (matching your working code exactly)
+    onClear();
+    setCustomerDetails({ name: '', location: '', message: '' });
+    onClose();
   };
 
   return (
