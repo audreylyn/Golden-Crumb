@@ -98,7 +98,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart, cartItemCount }) => 
     }
   };
 
-  const brandName = navbarContent?.brand_name || 'The Golden Crumb';
+  // Don't show brand name until data is loaded
+  const brandName = navbarContent?.brand_name || '';
   const brandLogo = navbarContent?.brand_logo_url;
   const navItems = (navbarContent?.nav_items as any[]) || [
     { label: 'Home', href: '#hero', order: 0 },
@@ -107,8 +108,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart, cartItemCount }) => 
     { label: 'Contact', href: '#contact', order: 3 },
   ];
 
-  if (loading) {
-    // Show navbar with default values while loading
+  // Show minimal navbar while loading (no brand name to prevent flash)
+  if (loading || !navbarContent) {
     return (
       <nav className="fixed w-full z-40 bg-transparent py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -117,7 +118,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart, cartItemCount }) => 
               <div className="p-2 rounded-full bg-white text-bakery-primary">
                 <Croissant size={24} />
               </div>
-              <span className="font-serif text-2xl font-bold text-white">The Golden Crumb</span>
+              {/* Don't show brand name until loaded */}
             </div>
           </div>
         </div>

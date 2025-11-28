@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Facebook, Instagram, Twitter, Linkedin, Youtube, MessageCircle, Share2, Check, Loader2, X, Plus } from 'lucide-react';
 import { EditableText } from '../src/components/editor/EditableText';
 import { useEditor } from '../src/contexts/EditorContext';
 import { supabase, getWebsiteId } from '../src/lib/supabase';
+import type { FooterContent, NavbarContent } from '../src/types/database.types';
 
 interface SocialLink {
   id: string;
@@ -14,18 +15,84 @@ interface SocialLink {
 export const Footer: React.FC = () => {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
-  const [brandName, setBrandName] = useState('The Golden Crumb');
-  const [aboutText, setAboutText] = useState('Bringing warmth to your day, one pastry at a time. Baked fresh daily with love and the finest ingredients.');
+  const [loading, setLoading] = useState(true);
+  const [brandName, setBrandName] = useState('');
+  const [aboutText, setAboutText] = useState('');
   const [quickLinksTitle, setQuickLinksTitle] = useState('Quick Links');
   const [newsletterTitle, setNewsletterTitle] = useState('Stay in the Loop');
   const [newsletterDescription, setNewsletterDescription] = useState('Join our newsletter for special offers.');
-  const [copyrightText, setCopyrightText] = useState(`© ${new Date().getFullYear()} The Golden Crumb Bakery. All rights reserved.`);
-  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([
-    { id: '1', platform: 'Instagram', url: '#', icon: <Instagram size={24} /> },
-    { id: '2', platform: 'Facebook', url: '#', icon: <Facebook size={24} /> },
-    { id: '3', platform: 'Twitter', url: '#', icon: <Twitter size={24} /> }
-  ]);
+  const [copyrightText, setCopyrightText] = useState('');
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  const [footerContent, setFooterContent] = useState<FooterContent | null>(null);
   const { isEditing, saveField } = useEditor();
+
+  useEffect(() => {
+    loadFooterData();
+  }, []);
+
+  const loadFooterData = async () => {
+    try {
+      const websiteId = await getWebsiteId();
+      if (!websiteId) {
+        setLoading(false);
+        return;
+      }
+
+      // Load navbar content for brand name
+      const { data: navbarData } = await supabase
+        .from('navbar_content')
+        .select('brand_name')
+        .eq('website_id', websiteId)
+        .single();
+
+      // Load footer content
+      const { data: footerData, error: footerError } = await supabase
+        .from('footer_content')
+        .select('*')
+        .eq('website_id', websiteId)
+        .single();
+
+      if (navbarData?.brand_name) {
+        setBrandName(navbarData.brand_name);
+      }
+
+      if (!footerError && footerData) {
+        setFooterContent(footerData);
+        if (footerData.about_text) setAboutText(footerData.about_text);
+        if (footerData.copyright_text) {
+          setCopyrightText(footerData.copyright_text);
+        } else {
+          setCopyrightText(`© ${new Date().getFullYear()} ${navbarData?.brand_name || ''}. All rights reserved.`);
+        }
+        
+        // Load social links from contact_info
+        const { data: contactData } = await supabase
+          .from('contact_info')
+          .select('social_links')
+          .eq('website_id', websiteId)
+          .single();
+
+        if (contactData?.social_links) {
+          const links: SocialLink[] = [];
+          const socials = contactData.social_links as any;
+          if (socials.instagram) links.push({ id: '1', platform: 'Instagram', url: socials.instagram, icon: <Instagram size={24} /> });
+          if (socials.facebook) links.push({ id: '2', platform: 'Facebook', url: socials.facebook, icon: <Facebook size={24} /> });
+          if (socials.twitter) links.push({ id: '3', platform: 'Twitter', url: socials.twitter, icon: <Twitter size={24} /> });
+          setSocialLinks(links);
+        }
+      } else {
+        // Set defaults only if no data exists
+        if (!footerData) {
+          setAboutText('Bringing warmth to your day, one pastry at a time. Baked fresh daily with love and the finest ingredients.');
+          setCopyrightText(`© ${new Date().getFullYear()} ${navbarData?.brand_name || ''}. All rights reserved.`);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading footer data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +109,11 @@ export const Footer: React.FC = () => {
     }, 1500);
   };
 
+  // Don't render footer until data is loaded to prevent flash
+  if (loading || !brandName) {
+    return null;
+  }
+
   return (
     <footer className="bg-bakery-dark text-bakery-beige pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -54,7 +126,11 @@ export const Footer: React.FC = () => {
                 value={brandName}
                 onSave={async (newValue) => {
                   setBrandName(newValue);
-                  // Save to database if needed
+                  // Save to navbar_content
+                  const websiteId = await getWebsiteId();
+                  if (websiteId && footerContent) {
+                    await saveField('navbar_content', 'brand_name', newValue);
+                  }
                 }}
                 tag="h3"
                 className="font-serif text-3xl font-bold text-white mb-4"
